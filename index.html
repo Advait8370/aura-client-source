@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Aura Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-box">A</div>
+      <div>
+        <h1>Aura</h1>
+        <p>Client Launcher</p>
+      </div>
+    </div>
+
+    <button class="side-btn active" onclick="showPage('home', this)">🏠 Home</button>
+    <button class="side-btn" onclick="showPage('clients', this)">🧩 Clients</button>
+    <button class="side-btn" onclick="showPage('settings', this)">⚙ Settings</button>
+    <button class="side-btn" onclick="showPage('skins', this)">🎨 Skins</button>
+
+    <div class="account">
+      <img id="skinAvatar" class="skin-avatar" src="" onerror="this.style.display='none'">
+      <div class="avatar" id="defaultAvatar">👤</div>
+      <div>
+        <b id="accountName">Not logged in</b>
+        <p>Ely.by Account</p>
+      </div>
+    </div>
+
+    <div class="login-box">
+      <input id="username" placeholder="Username / Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="loginEly()">Login</button>
+      <button class="dark-btn" onclick="logoutEly()">Logout</button>
+    </div>
+
+    <div id="status" class="status">Ready</div>
+  </aside>
+
+  <main class="main">
+
+    <section id="page-home" class="page active-page">
+      <header class="topbar">
+        <div>
+          <h2>Aura Client</h2>
+          <p>Fast cloud Minecraft client launcher</p>
+        </div>
+        <button class="dark-btn small" onclick="selectJava()">☕ Java</button>
+      </header>
+
+      <section class="banner">
+        <div>
+          <span>AURA CLIENT</span>
+          <h3>Ready to play?</h3>
+          <p>Click PLAY. If the client is missing, Aura downloads it automatically.</p>
+        </div>
+      </section>
+
+      <section class="panel-grid">
+        <div class="card launch-card">
+          <h3>Launch Game</h3>
+
+          <label>Client Version</label>
+          <select id="client" onchange="checkSelectedClient()"></select>
+
+          <div id="installState" class="install-state">Loading...</div>
+
+          <div class="progress">
+            <div id="downloadProgress"></div>
+          </div>
+          <p id="downloadPercent">0%</p>
+
+          <button class="play-btn" onclick="play()">PLAY</button>
+        </div>
+
+        <div class="card console-card">
+          <div class="console-head">
+            <h3>Console</h3>
+            <span>Live logs</span>
+          </div>
+          <textarea id="console" readonly></textarea>
+        </div>
+      </section>
+    </section>
+
+    <section id="page-clients" class="page">
+      <header class="topbar">
+        <div>
+          <h2>Client Manager</h2>
+          <p>Install, repair, or delete Aura Client versions.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <label>Selected Client</label>
+        <select id="clientManagerSelect" onchange="syncClientSelect()"></select>
+
+        <div id="managerState" class="install-state">Loading...</div>
+
+        <div class="progress">
+          <div id="managerProgress"></div>
+        </div>
+        <p id="managerPercent">0%</p>
+
+        <div class="button-row">
+          <button class="dark-btn" onclick="repairSelectedClient()">Repair</button>
+          <button class="danger-btn" onclick="deleteSelectedClient()">Delete</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="page-settings" class="page">
+      <header class="topbar">
+        <div>
+          <h2>Settings</h2>
+          <p>Configure RAM, Java, game directory, and launch behavior.</p>
+        </div>
+      </header>
+
+      <div class="card settings-card">
+        <label>RAM</label>
+        <select id="ram" onchange="saveSettings()">
+          <option value="2">2 GB</option>
+          <option value="4">4 GB</option>
+          <option value="6">6 GB</option>
+          <option value="8">8 GB</option>
+        </select>
+
+        <label>Java Path</label>
+        <div class="path-row">
+          <input id="javaPathInput" readonly placeholder="Default: java">
+          <button class="dark-btn" onclick="selectJava()">Browse</button>
+        </div>
+
+        <label>Game Directory</label>
+        <div class="path-row">
+          <input id="gameDirInput" readonly placeholder="Default: .aura-launcher">
+          <button class="dark-btn" onclick="selectGameDir()">Browse</button>
+        </div>
+
+        <label class="check-row">
+          <input id="closeAfterLaunch" type="checkbox" onchange="saveSettings()">
+          Close launcher after game starts
+        </label>
+      </div>
+    </section>
+
+    <section id="page-skins" class="page">
+      <header class="topbar">
+        <div>
+          <h2>Skins</h2>
+          <p>View Ely.by skin and open skin settings.</p>
+        </div>
+      </header>
+
+      <div class="card skin-card">
+        <img id="skinPreview" class="skin-preview" src="" onerror="this.style.display='none'">
+        <h3 id="skinName">Not logged in</h3>
+        <p>Login with Ely.by to show your skin.</p>
+        <button class="play-btn" onclick="openElySkins()">Open Ely.by Skins</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="logModal" class="log-modal hidden">
+  <div class="log-box">
+    <div class="loader"></div>
+    <h2>Launching Minecraft</h2>
+    <p id="logStatus">Preparing...</p>
+    <textarea id="launchLog" readonly></textarea>
+  </div>
+</div>
+
+<div id="crashModal" class="log-modal hidden">
+  <div class="log-box">
+    <h2>Minecraft crashed</h2>
+    <p id="crashText">Exit code: unknown</p>
+    <textarea id="crashLog" readonly></textarea>
+    <button class="danger-btn" onclick="closeCrashModal()">Close</button>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

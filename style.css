@@ -1,0 +1,439 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Segoe UI, Arial, sans-serif;
+  background: #070b12;
+  color: white;
+  overflow: hidden;
+}
+
+.app {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(34,197,94,.22), transparent 35%),
+    radial-gradient(circle at 20% 90%, rgba(14,165,233,.16), transparent 35%),
+    #070b12;
+}
+
+.sidebar {
+  position: relative;
+  padding: 24px;
+  background: rgba(8, 13, 22, .95);
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.logo-box {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #22c55e, #38bdf8);
+  color: #03130a;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.logo h1,
+.topbar h2,
+.card h3 {
+  margin: 0;
+}
+
+.logo p,
+.topbar p,
+.account p,
+.skin-card p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.side-btn {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #cbd5e1;
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.side-btn.active,
+.side-btn:hover {
+  background: rgba(34,197,94,.14);
+  color: white;
+}
+
+.account {
+  margin-top: 24px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-radius: 18px;
+  background: rgba(255,255,255,.06);
+}
+
+.avatar,
+.skin-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #111827;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+}
+
+.skin-avatar {
+  object-fit: cover;
+  image-rendering: pixelated;
+  display: none;
+}
+
+.login-box {
+  margin-top: 12px;
+}
+
+input,
+select {
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: #0b1220;
+  color: white;
+  outline: none;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.login-box button,
+.play-btn,
+.dark-btn,
+.danger-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.login-box button,
+.play-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #052e16;
+}
+
+.dark-btn {
+  background: #1e293b;
+  color: white;
+}
+
+.danger-btn {
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  color: white;
+}
+
+.status {
+  position: absolute;
+  bottom: 22px;
+  width: 232px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(34,197,94,.12);
+  color: #86efac;
+  font-size: 13px;
+}
+
+.main {
+  padding: 28px;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.page {
+  display: none;
+}
+
+.active-page {
+  display: block;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.small {
+  width: 120px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.banner {
+  margin-top: 18px;
+  height: 190px;
+  padding: 34px;
+  border-radius: 30px;
+  display: flex;
+  align-items: end;
+  background:
+    linear-gradient(90deg, rgba(2,6,23,.15), rgba(2,6,23,.85)),
+    linear-gradient(135deg, #16a34a, #0f766e);
+  box-shadow: 0 25px 70px rgba(0,0,0,.35);
+}
+
+.banner span {
+  color: #bbf7d0;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 12px;
+}
+
+.banner h3 {
+  margin: 8px 0;
+  font-size: 52px;
+}
+
+.banner p {
+  color: #dcfce7;
+}
+
+.panel-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 22px;
+}
+
+.card {
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(15,23,42,.82);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.install-state {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-weight: bold;
+}
+
+.install-state.installed {
+  background: rgba(34,197,94,.15);
+  color: #86efac;
+}
+
+.install-state.missing {
+  background: rgba(239,68,68,.15);
+  color: #fca5a5;
+}
+
+.progress {
+  margin-top: 12px;
+  height: 12px;
+  width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #020617;
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+#downloadProgress,
+#managerProgress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #22c55e, #38bdf8);
+  transition: width .2s ease;
+}
+
+#downloadPercent,
+#managerPercent {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.play-btn {
+  margin-top: 14px;
+  padding: 16px;
+  font-size: 22px;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.console-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.console-head span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+#console {
+  width: 100%;
+  height: 205px;
+  margin-top: 14px;
+  resize: none;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px;
+  background: #020617;
+  color: #86efac;
+  font-family: Consolas, monospace;
+}
+
+.settings-card {
+  max-width: 760px;
+  margin-top: 22px;
+}
+
+.path-row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 12px;
+  align-items: center;
+}
+
+.path-row button {
+  margin-top: 10px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.check-row input {
+  width: auto;
+  margin: 0;
+}
+
+.skin-card {
+  max-width: 420px;
+  margin-top: 22px;
+  text-align: center;
+}
+
+.skin-preview {
+  width: 180px;
+  height: 260px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 22px;
+  background: #020617;
+  border: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 16px;
+}
+
+.log-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.78);
+  z-index: 999;
+}
+
+.hidden {
+  display: none;
+}
+
+.log-box {
+  width: 620px;
+  padding: 26px;
+  border-radius: 26px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,.12);
+  text-align: center;
+}
+
+.loader {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 14px;
+  border: 5px solid #1e293b;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#logStatus {
+  color: #86efac;
+}
+
+#launchLog,
+#crashLog {
+  width: 100%;
+  height: 230px;
+  resize: none;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px;
+  background: #020617;
+  color: #86efac;
+  font-family: Consolas, monospace;
+  text-align: left;
+}
+
+@media (max-width: 1050px) {
+  .app {
+    grid-template-columns: 250px 1fr;
+  }
+
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .banner h3 {
+    font-size: 40px;
+  }
+}
