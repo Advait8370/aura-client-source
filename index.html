@@ -17,24 +17,18 @@
     </div>
 
     <button class="side-btn active" onclick="showPage('home', this)">🏠 Home</button>
+    <button class="side-btn" onclick="window.location.href='login.html'">👤 Account</button>
     <button class="side-btn" onclick="showPage('clients', this)">🧩 Clients</button>
     <button class="side-btn" onclick="showPage('settings', this)">⚙ Settings</button>
     <button class="side-btn" onclick="showPage('skins', this)">🎨 Skins</button>
 
-    <div class="account">
+    <div class="account" onclick="window.location.href='login.html'">
       <img id="skinAvatar" class="skin-avatar" src="" onerror="this.style.display='none'">
       <div class="avatar" id="defaultAvatar">👤</div>
       <div>
         <b id="accountName">Not logged in</b>
-        <p>Ely.by Account</p>
+        <p>Click to login</p>
       </div>
-    </div>
-
-    <div class="login-box">
-      <input id="username" placeholder="Username / Email">
-      <input id="password" type="password" placeholder="Password">
-      <button onclick="loginEly()">Login</button>
-      <button class="dark-btn" onclick="logoutEly()">Logout</button>
     </div>
 
     <div id="status" class="status">Ready</div>
@@ -145,6 +139,10 @@
           <input id="closeAfterLaunch" type="checkbox" onchange="saveSettings()">
           Close launcher after game starts
         </label>
+
+        <label>Launcher Update</label>
+        <button class="dark-btn" onclick="checkForUpdates()">Check for Updates</button>
+        <p id="updateStatus" class="muted">Auto update checks when launcher starts.</p>
       </div>
     </section>
 
@@ -169,6 +167,7 @@
 
 <div id="logModal" class="log-modal hidden">
   <div class="log-box">
+    <button class="modal-close" onclick="closeLogModal()">×</button>
     <div class="loader"></div>
     <h2>Launching Minecraft</h2>
     <p id="logStatus">Preparing...</p>

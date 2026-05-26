@@ -26,6 +26,7 @@ const crashLog = document.getElementById("crashLog");
 const javaPathInput = document.getElementById("javaPathInput");
 const gameDirInput = document.getElementById("gameDirInput");
 const closeAfterLaunchInput = document.getElementById("closeAfterLaunch");
+const updateStatus = document.getElementById("updateStatus");
 
 const skinAvatar = document.getElementById("skinAvatar");
 const defaultAvatar = document.getElementById("defaultAvatar");
@@ -257,6 +258,28 @@ function resetProgress() {
   managerPercent.innerText = "0%";
 }
 
+async function checkForUpdates() {
+  if (updateStatus) {
+    updateStatus.innerText = "Checking for launcher updates...";
+  }
+  statusText.innerText = "Checking for launcher updates...";
+
+  try {
+    const message = await ipcRenderer.invoke("check-for-updates");
+    if (updateStatus) {
+      updateStatus.innerText = message;
+    }
+    statusText.innerText = message;
+  } catch (err) {
+    const message = "Launcher update error: " + err.message;
+    if (updateStatus) {
+      updateStatus.innerText = message;
+    }
+    statusText.innerText = message;
+    consoleBox.value += message + "\n";
+  }
+}
+
 async function repairSelectedClient() {
   if (!clientManagerSelect.value) return;
 
@@ -383,6 +406,10 @@ ipcRenderer.on("download-progress", (e, percent) => {
 ipcRenderer.on("launch-status", (e, msg) => {
   statusText.innerText = msg;
   logStatus.innerText = msg;
+
+  if (updateStatus && /update|up to date/i.test(msg)) {
+    updateStatus.innerText = msg;
+  }
 
   if (msg === "Minecraft started.") {
     setTimeout(() => logModal.classList.add("hidden"), 1500);

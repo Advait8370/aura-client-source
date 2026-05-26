@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Aura Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+    <div class="logo-box login-logo">A</div>
+
+    <h1>Aura Account</h1>
+    <p class="muted">Login to continue</p>
+
+    <button class="ms-btn" onclick="loginMicrosoft()">Login with Microsoft</button>
+
+    <div class="divider">or</div>
+
+    <input id="username" placeholder="Ely.by Username / Email">
+    <input id="password" type="password" placeholder="Ely.by Password">
+
+    <button class="play-btn" onclick="loginEly()">Login with Ely.by</button>
+    <button class="dark-btn" onclick="goBack()">Back</button>
+
+    <p id="loginStatus" class="login-status">Ready</p>
+  </div>
+</div>
+
+<script src="login.js"></script>
+</body>
+</html>
