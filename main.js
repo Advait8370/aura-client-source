@@ -1,5 +1,4 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
-const { autoUpdater } = require("electron-updater");
 const msmc = require("msmc");
 
 const {
@@ -49,67 +48,6 @@ function createWindow() {
   mainWindow.removeMenu();
 }
 
-function setupAutoUpdater() {
-  if (!app.isPackaged) {
-    console.log("[auto-update] Auto update works only after build/install.");
-    return;
-  }
-
-  autoUpdater.autoDownload = true;
-
-  autoUpdater.on("checking-for-update", () => {
-    updateCheckInProgress = true;
-    sendUpdateStatus("Checking for launcher updates...");
-    logUpdate("Checking GitHub Releases for launcher updates.");
-  });
-
-  autoUpdater.on("update-available", info => {
-    const version = info && info.version ? " v" + info.version : "";
-    sendUpdateStatus("Launcher update available" + version + ". Downloading...");
-    logUpdate("Launcher update available" + version + ".");
-  });
-
-  autoUpdater.on("update-not-available", () => {
-    updateCheckInProgress = false;
-    sendUpdateStatus("No launcher update available.");
-    logUpdate("No launcher update available.");
-  });
-
-  autoUpdater.on("download-progress", progress => {
-    const percent = Math.max(0, Math.min(100, Math.round(progress.percent || 0)));
-    sendToRenderer("download-progress", percent);
-    sendUpdateStatus("Downloading launcher update... " + percent + "%");
-    console.log("[auto-update] Downloading launcher update: " + percent + "%");
-  });
-
-  autoUpdater.on("update-downloaded", () => {
-    updateCheckInProgress = false;
-    sendToRenderer("download-progress", 100);
-    sendUpdateStatus("Launcher update downloaded. Restarting to install...");
-    logUpdate("Launcher update downloaded. Restarting to install.");
-
-    setTimeout(() => {
-      autoUpdater.quitAndInstall(false, true);
-    }, 1500);
-  });
-
-  autoUpdater.on("error", err => {
-    updateCheckInProgress = false;
-    const message = err && err.message ? err.message : String(err);
-    sendUpdateStatus("Launcher update error: " + message);
-    logUpdate("Launcher update error: " + message);
-  });
-
-  setTimeout(() => {
-    updateCheckInProgress = true;
-    autoUpdater.checkForUpdatesAndNotify().catch(err => {
-      updateCheckInProgress = false;
-      const message = err && err.message ? err.message : String(err);
-      sendUpdateStatus("Launcher update error: " + message);
-      logUpdate("Launcher update error: " + message);
-    });
-  }, 1500);
-}
 
 ipcMain.handle("login-microsoft", async () => {
   const xboxManager = new msmc.XboxManager();
@@ -180,12 +118,21 @@ ipcMain.handle("load-clients", async () => {
 ipcMain.handle("check-client", async (e, data) => {
   const clientId = typeof data === "string" ? data : data.client;
   const gameDir = typeof data === "string" ? null : data.gameDir;
+
+  if (!clientId || clientId.trim() === "") {
+    return false;
+  }
+
   return await isClientInstalled(clientId, gameDir);
 });
 
 ipcMain.handle("install-client", async (e, data) => {
   const clientId = typeof data === "string" ? data : data.client;
   const gameDir = typeof data === "string" ? null : data.gameDir;
+
+  if (!clientId || clientId.trim() === "") {
+    throw new Error("No client selected");
+  }
 
   return await installClient(
     clientId,
@@ -255,10 +202,7 @@ ipcMain.on("launch-game", async (event, data) => {
   }
 });
 
-app.whenReady().then(() => {
-  createWindow();
-  setupAutoUpdater();
-});
+app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

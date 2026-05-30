@@ -5,7 +5,8 @@ const fs = require("fs");
 const fetch = require("node-fetch");
 const extract = require("extract-zip");
 
-const CLIENTS_JSON_URL = "https://advait8370.github.io/aura-launcher-cloud/clients.json";
+const CLIENTS_JSON_URL =
+"https://advait8370.github.io/aura-launcher-cloud/clients.json";
 
 let cachedClients = [];
 
@@ -24,6 +25,7 @@ async function loadClients() {
   }
 
   cachedClients = await res.json();
+  console.log("CLIENTS JSON:", cachedClients);
 
   if (!Array.isArray(cachedClients)) {
     throw new Error("clients.json must be an array");

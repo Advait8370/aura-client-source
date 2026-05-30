@@ -1,3 +1,7 @@
+window.onerror = function(msg, url, line, col, err) {
+  console.error("JS ERROR:", msg, "Line:", line);
+  alert("JS ERROR: " + msg + " Line: " + line);
+};
 const { ipcRenderer } = require("electron");
 
 const statusText = document.getElementById("status");
@@ -26,7 +30,6 @@ const crashLog = document.getElementById("crashLog");
 const javaPathInput = document.getElementById("javaPathInput");
 const gameDirInput = document.getElementById("gameDirInput");
 const closeAfterLaunchInput = document.getElementById("closeAfterLaunch");
-const updateStatus = document.getElementById("updateStatus");
 
 const skinAvatar = document.getElementById("skinAvatar");
 const defaultAvatar = document.getElementById("defaultAvatar");
@@ -34,7 +37,10 @@ const skinPreview = document.getElementById("skinPreview");
 const skinName = document.getElementById("skinName");
 
 let clientsCache = [];
-let elyUser = JSON.parse(localStorage.getItem("elyUser") || "null");
+let elyUser =
+  JSON.parse(localStorage.getItem("auraAccount")) ||
+  JSON.parse(localStorage.getItem("elyUser")) ||
+  null;
 
 let settings = JSON.parse(localStorage.getItem("auraSettings") || "{}");
 
@@ -55,10 +61,23 @@ function saveSettings() {
 }
 
 function loadSettings() {
-  document.getElementById("ram").value = settings.ram || "2";
-  javaPathInput.value = javaPath === "java" ? "" : javaPath;
-  gameDirInput.value = gameDir || "";
-  closeAfterLaunchInput.checked = closeAfterLaunch;
+  const ramSelect = document.getElementById("ram");
+
+  if (ramSelect) {
+    ramSelect.value = settings.ram || "2";
+  }
+
+  if (javaPathInput) {
+    javaPathInput.value = javaPath === "java" ? "" : javaPath;
+  }
+
+  if (gameDirInput) {
+    gameDirInput.value = gameDir || "";
+  }
+
+  if (closeAfterLaunchInput) {
+    closeAfterLaunchInput.checked = closeAfterLaunch;
+  }
 }
 
 function showPage(page, btn) {
@@ -81,6 +100,9 @@ async function loadClients() {
   try {
     clientsCache = await ipcRenderer.invoke("load-clients");
 
+    console.log("Clients loaded:", clientsCache);
+    console.log("Count:", clientsCache.length);
+
     clientSelect.innerHTML = "";
     clientManagerSelect.innerHTML = "";
 
@@ -96,10 +118,23 @@ async function loadClients() {
       clientManagerSelect.appendChild(opt2);
     });
 
+    // FIX
+    if (clientsCache.length > 0) {
+      clientSelect.selectedIndex = 0;
+      clientManagerSelect.selectedIndex = 0;
+
+      clientSelect.value = clientsCache[0].id;
+      clientManagerSelect.value = clientsCache[0].id;
+
+      console.log("Default client:", clientSelect.value);
+    }
+
     await checkSelectedClient();
     await checkManagerClient();
+
   } catch (err) {
     statusText.innerText = "Failed to load clients";
+    console.error(err);
     consoleBox.value += err.message + "\n";
   }
 }
@@ -144,7 +179,6 @@ async function loginEly() {
 
     localStorage.setItem("elyUser", JSON.stringify(elyUser));
     accountName.innerText = elyUser.name;
-    document.getElementById("username").value = elyUser.name;
     statusText.innerText = "Logged in: " + elyUser.name;
 
     updateSkinUI();
@@ -212,36 +246,52 @@ async function selectGameDir() {
 }
 
 async function checkSelectedClient() {
-  if (!clientSelect.value) return;
+  if (!clientSelect || !clientSelect.value || clientSelect.value === "") {
+    return;
+  }
 
-  const installed = await ipcRenderer.invoke("check-client", {
-    client: clientSelect.value,
-    gameDir
-  });
+  try {
+    const installed = await ipcRenderer.invoke("check-client", {
+      client: clientSelect.value,
+      gameDir
+    });
 
-  if (installed) {
-    installState.innerText = "Installed";
-    installState.className = "install-state installed";
-  } else {
-    installState.innerText = "Not installed";
-    installState.className = "install-state missing";
+    if (installed) {
+      installState.innerText = "Installed";
+      installState.className = "install-state installed";
+    } else {
+      installState.innerText = "Not installed";
+      installState.className = "install-state missing";
+    }
+  } catch (err) {
+    console.error(err);
   }
 }
 
 async function checkManagerClient() {
-  if (!clientManagerSelect.value) return;
+  if (
+    !clientManagerSelect ||
+    !clientManagerSelect.value ||
+    clientManagerSelect.value === ""
+  ) {
+    return;
+  }
 
-  const installed = await ipcRenderer.invoke("check-client", {
-    client: clientManagerSelect.value,
-    gameDir
-  });
+  try {
+    const installed = await ipcRenderer.invoke("check-client", {
+      client: clientManagerSelect.value,
+      gameDir
+    });
 
-  if (installed) {
-    managerState.innerText = "Installed";
-    managerState.className = "install-state installed";
-  } else {
-    managerState.innerText = "Not installed";
-    managerState.className = "install-state missing";
+    if (installed) {
+      managerState.innerText = "Installed";
+      managerState.className = "install-state installed";
+    } else {
+      managerState.innerText = "Not installed";
+      managerState.className = "install-state missing";
+    }
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -256,28 +306,6 @@ function resetProgress() {
   downloadPercent.innerText = "0%";
   managerProgress.style.width = "0%";
   managerPercent.innerText = "0%";
-}
-
-async function checkForUpdates() {
-  if (updateStatus) {
-    updateStatus.innerText = "Checking for launcher updates...";
-  }
-  statusText.innerText = "Checking for launcher updates...";
-
-  try {
-    const message = await ipcRenderer.invoke("check-for-updates");
-    if (updateStatus) {
-      updateStatus.innerText = message;
-    }
-    statusText.innerText = message;
-  } catch (err) {
-    const message = "Launcher update error: " + err.message;
-    if (updateStatus) {
-      updateStatus.innerText = message;
-    }
-    statusText.innerText = message;
-    consoleBox.value += message + "\n";
-  }
 }
 
 async function repairSelectedClient() {
@@ -332,6 +360,11 @@ async function deleteSelectedClient() {
 }
 
 async function play() {
+
+if (!clientId || clientId.trim() === "") {
+  alert("No client selected.");
+  return;
+}
   if (!elyUser) {
     statusText.innerText = "Login first";
     return;
@@ -342,8 +375,6 @@ async function play() {
   launchLog.value = "";
   crashLog.value = "";
   logModal.classList.remove("hidden");
-
-  const clientId = clientSelect.value;
 
   try {
     logStatus.innerText = "Checking client...";
@@ -407,10 +438,6 @@ ipcRenderer.on("launch-status", (e, msg) => {
   statusText.innerText = msg;
   logStatus.innerText = msg;
 
-  if (updateStatus && /update|up to date/i.test(msg)) {
-    updateStatus.innerText = msg;
-  }
-
   if (msg === "Minecraft started.") {
     setTimeout(() => logModal.classList.add("hidden"), 1500);
   }
@@ -436,9 +463,17 @@ ipcRenderer.on("minecraft-closed", (e, code) => {
 
 if (elyUser) {
   accountName.innerText = elyUser.name;
-  document.getElementById("username").value = elyUser.name;
 }
 
 loadSettings();
 updateSkinUI();
-loadClients();
+
+console.log("Loading clients...");
+loadClients()
+  .then(() => {
+    console.log("Clients loaded successfully");
+    console.log("Selected:", clientSelect.value);
+  })
+  .catch(err => {
+    console.error("Client load failed:", err);
+  });
