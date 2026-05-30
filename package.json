@@ -17,8 +17,10 @@
     "files": [
       "main.js",
       "index.html",
-      "style.css",
+      "login.html",
       "renderer.js",
+      "login.js",
+      "style.css",
       "launcher/**/*",
       "node_modules/**/*",
       "package.json"
