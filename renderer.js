@@ -360,20 +360,25 @@ async function deleteSelectedClient() {
 }
 
 async function play() {
+  const clientId = clientSelect.value;
 
-if (!clientId || clientId.trim() === "") {
-  alert("No client selected.");
-  return;
-}
+  if (!clientId || clientId.trim() === "") {
+    alert("No client selected.");
+    return;
+  }
+
   if (!elyUser) {
     statusText.innerText = "Login first";
+    alert("Please login first.");
     return;
   }
 
   resetProgress();
+
   consoleBox.value = "";
   launchLog.value = "";
   crashLog.value = "";
+
   logModal.classList.remove("hidden");
 
   try {
@@ -412,16 +417,21 @@ if (!clientId || clientId.trim() === "") {
       gameDir,
       closeAfterLaunch: closeAfterLaunchInput.checked
     });
+
   } catch (err) {
     logStatus.innerText = "Error";
     statusText.innerText = "Error: " + err.message;
+
     consoleBox.value += err.message + "\n";
     launchLog.value += err.message + "\n";
+
+    console.error(err);
   }
 }
 
-function closeCrashModal() {
-  crashModal.classList.add("hidden");
+function closeLogModal() {
+  logModal.classList.add("hidden");
+  statusText.innerText = "Launcher running";
 }
 
 ipcRenderer.on("download-progress", (e, percent) => {

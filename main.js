@@ -87,30 +87,6 @@ ipcMain.handle("open-external", async (e, url) => {
   return true;
 });
 
-ipcMain.handle("check-for-updates", async () => {
-  if (!app.isPackaged) {
-    return "Auto update works only after build/install.";
-  }
-
-  if (updateCheckInProgress) {
-    return "Launcher update check is already running.";
-  }
-
-  try {
-    updateCheckInProgress = true;
-    sendUpdateStatus("Checking for launcher updates...");
-    logUpdate("Manual launcher update check started.");
-    await autoUpdater.checkForUpdatesAndNotify();
-    return "Checking for launcher updates...";
-  } catch (err) {
-    updateCheckInProgress = false;
-    const message = err && err.message ? err.message : String(err);
-    sendUpdateStatus("Launcher update error: " + message);
-    logUpdate("Launcher update error: " + message);
-    return "Launcher update error: " + message;
-  }
-});
-
 ipcMain.handle("load-clients", async () => {
   return await loadClients();
 });
