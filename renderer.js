@@ -1,19 +1,25 @@
-window.onerror = function(msg, url, line, col, err) {
-  console.error("JS ERROR:", msg, "Line:", line);
-  alert("JS ERROR: " + msg + " Line: " + line);
+window.onerror = function(message, url, line) {
+  console.error("JS ERROR:", message, "Line:", line);
+  alert("JS ERROR: " + message + " Line: " + line);
 };
+
 const { ipcRenderer } = require("electron");
 
 const statusText = document.getElementById("status");
 const consoleBox = document.getElementById("console");
 const accountName = document.getElementById("accountName");
+const accountType = document.getElementById("accountType");
+const accountSelect = document.getElementById("accountSelect");
+const accountAvatarLarge = document.getElementById("accountAvatarLarge");
+const accountNameLarge = document.getElementById("accountNameLarge");
+const currentAccountStatus = document.getElementById("currentAccountStatus");
+const accountUuid = document.getElementById("accountUuid");
+const accountStatusIndicator = document.getElementById("accountStatusIndicator");
 
 const clientSelect = document.getElementById("client");
 const clientManagerSelect = document.getElementById("clientManagerSelect");
-
 const installState = document.getElementById("installState");
 const managerState = document.getElementById("managerState");
-
 const downloadProgress = document.getElementById("downloadProgress");
 const downloadPercent = document.getElementById("downloadPercent");
 const managerProgress = document.getElementById("managerProgress");
@@ -22,7 +28,6 @@ const managerPercent = document.getElementById("managerPercent");
 const logModal = document.getElementById("logModal");
 const launchLog = document.getElementById("launchLog");
 const logStatus = document.getElementById("logStatus");
-
 const crashModal = document.getElementById("crashModal");
 const crashText = document.getElementById("crashText");
 const crashLog = document.getElementById("crashLog");
@@ -30,23 +35,200 @@ const crashLog = document.getElementById("crashLog");
 const javaPathInput = document.getElementById("javaPathInput");
 const gameDirInput = document.getElementById("gameDirInput");
 const closeAfterLaunchInput = document.getElementById("closeAfterLaunch");
-
 const skinAvatar = document.getElementById("skinAvatar");
 const defaultAvatar = document.getElementById("defaultAvatar");
 const skinPreview = document.getElementById("skinPreview");
 const skinName = document.getElementById("skinName");
+const skinHelp = document.getElementById("skinHelp");
 
 let clientsCache = [];
-let elyUser =
-  JSON.parse(localStorage.getItem("auraAccount")) ||
-  JSON.parse(localStorage.getItem("elyUser")) ||
-  null;
-
+let currentAccount = readCurrentAccount();
 let settings = JSON.parse(localStorage.getItem("auraSettings") || "{}");
-
 let javaPath = settings.javaPath || "java";
 let gameDir = settings.gameDir || "";
 let closeAfterLaunch = settings.closeAfterLaunch || false;
+
+function readAccounts() {
+  return JSON.parse(localStorage.getItem("auraAccounts") || "[]");
+}
+
+function writeAccounts(accounts) {
+  localStorage.setItem("auraAccounts", JSON.stringify(accounts));
+}
+
+function readCurrentAccount() {
+  return JSON.parse(localStorage.getItem("auraAccount") || "null");
+}
+
+function setCurrentAccount(account) {
+  currentAccount = account;
+
+  if (account) {
+    localStorage.setItem("auraAccount", JSON.stringify(account));
+  } else {
+    localStorage.removeItem("auraAccount");
+  }
+
+  renderAccountUI();
+}
+
+function accountLabel(account) {
+  if (!account) {
+    return "No account";
+  }
+
+  return account.type === "ely" ? "Ely.by Account" : "Offline Account";
+}
+
+function accountAvatar(account) {
+  if (!account) {
+    return "";
+  }
+
+  return account.avatarUrl || `https://mc-heads.net/avatar/${encodeURIComponent(account.name)}/128`;
+}
+
+function normalizeStoredAccounts() {
+  const accounts = readAccounts().filter(account => account && account.id && account.name);
+  const selected = readCurrentAccount();
+
+  if (selected && !accounts.some(account => account.id === selected.id)) {
+    accounts.push(selected);
+  }
+
+  writeAccounts(accounts);
+
+  if (!selected && accounts.length > 0) {
+    setCurrentAccount(accounts[0]);
+  } else {
+    currentAccount = selected;
+  }
+}
+
+function renderAccountUI() {
+  const accounts = readAccounts();
+
+  accountSelect.innerHTML = "";
+
+  if (accounts.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No saved accounts";
+    accountSelect.appendChild(option);
+  } else {
+    accounts.forEach(account => {
+      const option = document.createElement("option");
+      option.value = account.id;
+      option.textContent = `${account.name} · ${account.type === "ely" ? "Ely.by" : "Offline"}`;
+      accountSelect.appendChild(option);
+    });
+  }
+
+  if (currentAccount) {
+    accountSelect.value = currentAccount.id;
+    accountName.innerText = currentAccount.name;
+    accountType.innerText = accountLabel(currentAccount);
+    accountNameLarge.innerText = currentAccount.name;
+    currentAccountStatus.innerText = accountLabel(currentAccount) + " selected";
+    accountUuid.innerText = "UUID: " + currentAccount.uuid;
+    accountStatusIndicator.innerText = "Signed in";
+    accountStatusIndicator.className = "install-state installed";
+
+    const avatarUrl = accountAvatar(currentAccount);
+    skinAvatar.src = avatarUrl;
+    skinAvatar.style.display = "block";
+    defaultAvatar.style.display = "none";
+    accountAvatarLarge.src = avatarUrl;
+    accountAvatarLarge.style.display = "block";
+  } else {
+    accountName.innerText = "Not logged in";
+    accountType.innerText = "Add an account";
+    accountNameLarge.innerText = "Not logged in";
+    currentAccountStatus.innerText = "No account selected";
+    accountUuid.innerText = "UUID unavailable";
+    accountStatusIndicator.innerText = "Signed out";
+    accountStatusIndicator.className = "install-state missing";
+    skinAvatar.style.display = "none";
+    defaultAvatar.style.display = "grid";
+    accountAvatarLarge.style.display = "none";
+  }
+
+  updateSkinUI();
+}
+
+function showPage(page, btn) {
+  document.querySelectorAll(".page").forEach(section => {
+    section.classList.remove("active-page");
+  });
+
+  const target = document.getElementById("page-" + page);
+  if (target) {
+    target.classList.add("active-page");
+  }
+
+  document.querySelectorAll(".side-btn").forEach(button => {
+    button.classList.remove("active");
+  });
+
+  if (btn) {
+    btn.classList.add("active");
+  } else {
+    const buttons = Array.from(document.querySelectorAll(".side-btn"));
+    const activeButton = buttons.find(button => button.textContent.trim().toLowerCase() === page);
+    if (activeButton) {
+      activeButton.classList.add("active");
+    }
+  }
+
+  if (page === "clients") {
+    checkManagerClient();
+  }
+
+  if (page === "account") {
+    renderAccountUI();
+  }
+
+  if (page === "skins") {
+    updateSkinUI();
+  }
+}
+
+function openLoginPage() {
+  window.location.href = "login.html";
+}
+
+function switchAccount(accountId) {
+  const account = readAccounts().find(saved => saved.id === accountId);
+
+  if (!account) {
+    return;
+  }
+
+  setCurrentAccount(account);
+  statusText.innerText = "Switched to " + account.name;
+}
+
+function logoutAccount() {
+  setCurrentAccount(null);
+  statusText.innerText = "Logged out";
+}
+
+function deleteCurrentAccount() {
+  if (!currentAccount) {
+    statusText.innerText = "No account selected";
+    return;
+  }
+
+  const ok = confirm("Delete account " + currentAccount.name + "?");
+  if (!ok) {
+    return;
+  }
+
+  const accounts = readAccounts().filter(account => account.id !== currentAccount.id);
+  writeAccounts(accounts);
+  setCurrentAccount(accounts[0] || null);
+  statusText.innerText = "Account deleted";
+}
 
 function saveSettings() {
   settings = {
@@ -56,15 +238,31 @@ function saveSettings() {
     closeAfterLaunch: closeAfterLaunchInput.checked
   };
 
+  closeAfterLaunch = settings.closeAfterLaunch;
   localStorage.setItem("auraSettings", JSON.stringify(settings));
   statusText.innerText = "Settings saved";
 }
 
 function loadSettings() {
   const ramSelect = document.getElementById("ram");
+  const themeSelect = document.getElementById("theme");
+  const accentSelect = document.getElementById("accentColor");
+  const savedTheme = localStorage.getItem("auraTheme") || "dark";
+  const savedAccent = localStorage.getItem("auraAccent") || "#22c55e";
+
+  document.body.dataset.theme = savedTheme;
+  document.documentElement.style.setProperty("--accent", savedAccent);
 
   if (ramSelect) {
     ramSelect.value = settings.ram || "2";
+  }
+
+  if (themeSelect) {
+    themeSelect.value = savedTheme;
+  }
+
+  if (accentSelect) {
+    accentSelect.value = savedAccent;
   }
 
   if (javaPathInput) {
@@ -80,58 +278,31 @@ function loadSettings() {
   }
 }
 
-function showPage(page, btn) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active-page"));
-  document.getElementById("page-" + page).classList.add("active-page");
-
-  document.querySelectorAll(".side-btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-
-  if (page === "clients") {
-    checkManagerClient();
-  }
-
-  if (page === "skins") {
-    updateSkinUI();
-  }
-}
-
 async function loadClients() {
   try {
     clientsCache = await ipcRenderer.invoke("load-clients");
-
-    console.log("Clients loaded:", clientsCache);
-    console.log("Count:", clientsCache.length);
-
     clientSelect.innerHTML = "";
     clientManagerSelect.innerHTML = "";
 
     clientsCache.forEach(client => {
-      const opt1 = document.createElement("option");
-      opt1.value = client.id;
-      opt1.textContent = client.name;
-      clientSelect.appendChild(opt1);
+      const launchOption = document.createElement("option");
+      launchOption.value = client.id;
+      launchOption.textContent = client.name;
+      clientSelect.appendChild(launchOption);
 
-      const opt2 = document.createElement("option");
-      opt2.value = client.id;
-      opt2.textContent = client.name;
-      clientManagerSelect.appendChild(opt2);
+      const managerOption = document.createElement("option");
+      managerOption.value = client.id;
+      managerOption.textContent = client.name;
+      clientManagerSelect.appendChild(managerOption);
     });
 
-    // FIX
     if (clientsCache.length > 0) {
-      clientSelect.selectedIndex = 0;
-      clientManagerSelect.selectedIndex = 0;
-
       clientSelect.value = clientsCache[0].id;
       clientManagerSelect.value = clientsCache[0].id;
-
-      console.log("Default client:", clientSelect.value);
     }
 
     await checkSelectedClient();
     await checkManagerClient();
-
   } catch (err) {
     statusText.innerText = "Failed to load clients";
     console.error(err);
@@ -139,84 +310,25 @@ async function loadClients() {
   }
 }
 
-async function loginEly() {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-
-  if (!username || !password) {
-    statusText.innerText = "Enter login details";
-    return;
-  }
-
-  statusText.innerText = "Logging in...";
-
-  try {
-    const res = await fetch("https://authserver.ely.by/auth/authenticate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        password,
-        clientToken: "AuraLauncher",
-        requestUser: true
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.accessToken) {
-      statusText.innerText = "Login failed";
-      alert(data.errorMessage || "Wrong username/password");
-      return;
-    }
-
-    elyUser = {
-      name: data.selectedProfile.name,
-      uuid: data.selectedProfile.id,
-      accessToken: data.accessToken,
-      clientToken: data.clientToken || "AuraLauncher"
-    };
-
-    localStorage.setItem("elyUser", JSON.stringify(elyUser));
-    accountName.innerText = elyUser.name;
-    statusText.innerText = "Logged in: " + elyUser.name;
-
-    updateSkinUI();
-  } catch (err) {
-    statusText.innerText = "Login error";
-    alert(err.message);
-  }
-}
-
-function logoutEly() {
-  elyUser = null;
-  localStorage.removeItem("elyUser");
-  accountName.innerText = "Not logged in";
-  statusText.innerText = "Logged out";
-  updateSkinUI();
-}
-
 function updateSkinUI() {
-  if (!elyUser) {
-    skinAvatar.style.display = "none";
-    defaultAvatar.style.display = "grid";
+  if (!currentAccount) {
     skinPreview.style.display = "none";
     skinName.innerText = "Not logged in";
+    skinHelp.innerText = "Login with Ely.by to show your skin.";
     return;
   }
 
-  accountName.innerText = elyUser.name;
-  skinName.innerText = elyUser.name;
+  skinName.innerText = currentAccount.name;
 
-  const skinUrl = `https://skinsystem.ely.by/skins/${elyUser.name}`;
-  const avatarUrl = `https://skinsystem.ely.by/skins/${elyUser.name}`;
+  if (currentAccount.type !== "ely") {
+    skinPreview.style.display = "none";
+    skinHelp.innerText = "Offline accounts do not include Ely.by skin sync.";
+    return;
+  }
 
-  skinAvatar.src = avatarUrl;
-  skinAvatar.style.display = "block";
-  defaultAvatar.style.display = "none";
-
-  skinPreview.src = skinUrl;
+  skinPreview.src = `https://skinsystem.ely.by/skins/${encodeURIComponent(currentAccount.name)}`;
   skinPreview.style.display = "block";
+  skinHelp.innerText = "Ely.by skin preview";
 }
 
 async function openElySkins() {
@@ -225,6 +337,7 @@ async function openElySkins() {
 
 async function selectJava() {
   const selected = await ipcRenderer.invoke("select-java");
+
   if (selected) {
     javaPath = selected;
     javaPathInput.value = selected;
@@ -235,6 +348,7 @@ async function selectJava() {
 
 async function selectGameDir() {
   const selected = await ipcRenderer.invoke("select-game-dir");
+
   if (selected) {
     gameDir = selected;
     gameDirInput.value = selected;
@@ -246,7 +360,7 @@ async function selectGameDir() {
 }
 
 async function checkSelectedClient() {
-  if (!clientSelect || !clientSelect.value || clientSelect.value === "") {
+  if (!clientSelect || !clientSelect.value) {
     return;
   }
 
@@ -269,11 +383,7 @@ async function checkSelectedClient() {
 }
 
 async function checkManagerClient() {
-  if (
-    !clientManagerSelect ||
-    !clientManagerSelect.value ||
-    clientManagerSelect.value === ""
-  ) {
+  if (!clientManagerSelect || !clientManagerSelect.value) {
     return;
   }
 
@@ -309,7 +419,9 @@ function resetProgress() {
 }
 
 async function repairSelectedClient() {
-  if (!clientManagerSelect.value) return;
+  if (!clientManagerSelect.value) {
+    return;
+  }
 
   resetProgress();
   consoleBox.value = "";
@@ -335,10 +447,14 @@ async function repairSelectedClient() {
 }
 
 async function deleteSelectedClient() {
-  if (!clientManagerSelect.value) return;
+  if (!clientManagerSelect.value) {
+    return;
+  }
 
   const ok = confirm("Delete selected client?");
-  if (!ok) return;
+  if (!ok) {
+    return;
+  }
 
   resetProgress();
   consoleBox.value = "";
@@ -362,23 +478,22 @@ async function deleteSelectedClient() {
 async function play() {
   const clientId = clientSelect.value;
 
-  if (!clientId || clientId.trim() === "") {
+  if (!clientId) {
     alert("No client selected.");
     return;
   }
 
-  if (!elyUser) {
+  if (!currentAccount) {
     statusText.innerText = "Login first";
-    alert("Please login first.");
+    alert("Please add or select an account first.");
+    showPage("account");
     return;
   }
 
   resetProgress();
-
   consoleBox.value = "";
   launchLog.value = "";
   crashLog.value = "";
-
   logModal.classList.remove("hidden");
 
   try {
@@ -408,23 +523,21 @@ async function play() {
 
     ipcRenderer.send("launch-game", {
       client: clientId,
-      username: elyUser.name,
-      uuid: elyUser.uuid,
-      accessToken: elyUser.accessToken,
-      clientToken: elyUser.clientToken,
+      accountType: currentAccount.type,
+      username: currentAccount.name,
+      uuid: currentAccount.uuid,
+      accessToken: currentAccount.accessToken,
+      clientToken: currentAccount.clientToken,
       ram: document.getElementById("ram").value,
       javaPath,
       gameDir,
       closeAfterLaunch: closeAfterLaunchInput.checked
     });
-
   } catch (err) {
     logStatus.innerText = "Error";
     statusText.innerText = "Error: " + err.message;
-
     consoleBox.value += err.message + "\n";
     launchLog.value += err.message + "\n";
-
     console.error(err);
   }
 }
@@ -434,56 +547,75 @@ function closeLogModal() {
   statusText.innerText = "Launcher running";
 }
 
-ipcRenderer.on("download-progress", (e, percent) => {
-  const p = Math.max(0, Math.min(100, Number(percent) || 0));
+function closeCrashModal() {
+  crashModal.classList.add("hidden");
+}
 
-  downloadProgress.style.width = p + "%";
-  downloadPercent.innerText = p + "%";
+function changeTheme() {
+  const theme = document.getElementById("theme").value;
+  document.body.dataset.theme = theme;
+  localStorage.setItem("auraTheme", theme);
+}
 
-  managerProgress.style.width = p + "%";
-  managerPercent.innerText = p + "%";
+function changeAccent() {
+  const colour = document.getElementById("accentColor").value;
+  document.documentElement.style.setProperty("--accent", colour);
+  localStorage.setItem("auraAccent", colour);
+}
+
+async function checkForUpdates() {
+  statusText.innerText = "Checking for updates...";
+  await ipcRenderer.invoke("check-for-updates");
+}
+
+ipcRenderer.on("download-progress", (event, data) => {
+  const payload = typeof data === "number" ? { percent: data } : data;
+  const percent = Math.round(Number(payload.percent) || 0);
+
+  downloadProgress.style.width = percent + "%";
+  managerProgress.style.width = percent + "%";
+  downloadPercent.innerText = `${percent}% • ${payload.speed?.toFixed(2) || 0} MB/s`;
+  managerPercent.innerText = `${percent}% • ETA ${Math.round(payload.eta || 0)}s`;
 });
 
-ipcRenderer.on("launch-status", (e, msg) => {
-  statusText.innerText = msg;
-  logStatus.innerText = msg;
+ipcRenderer.on("launch-status", (event, message) => {
+  statusText.innerText = message;
+  logStatus.innerText = message;
 
-  if (msg === "Minecraft started.") {
+  if (message === "Minecraft started.") {
     setTimeout(() => logModal.classList.add("hidden"), 1500);
   }
 });
 
-ipcRenderer.on("launch-log", (e, msg) => {
-  consoleBox.value += msg + "\n";
+ipcRenderer.on("launch-log", (event, message) => {
+  consoleBox.value += message + "\n";
   consoleBox.scrollTop = consoleBox.scrollHeight;
 
-  launchLog.value += msg + "\n";
+  launchLog.value += message + "\n";
   launchLog.scrollTop = launchLog.scrollHeight;
 
-  crashLog.value += msg + "\n";
+  crashLog.value += message + "\n";
   crashLog.scrollTop = crashLog.scrollHeight;
 });
 
-ipcRenderer.on("minecraft-closed", (e, code) => {
+ipcRenderer.on("minecraft-closed", (event, code) => {
   if (code !== 0) {
     crashText.innerText = "Exit code: " + code;
     crashModal.classList.remove("hidden");
   }
 });
 
-if (elyUser) {
-  accountName.innerText = elyUser.name;
-}
+ipcRenderer.on("update-status", (event, message) => {
+  statusText.innerText = message;
+});
 
+ipcRenderer.on("update-progress", (event, percent) => {
+  consoleBox.value += `Update ${Math.round(percent)}%\n`;
+});
+
+normalizeStoredAccounts();
 loadSettings();
-updateSkinUI();
-
-console.log("Loading clients...");
-loadClients()
-  .then(() => {
-    console.log("Clients loaded successfully");
-    console.log("Selected:", clientSelect.value);
-  })
-  .catch(err => {
-    console.error("Client load failed:", err);
-  });
+renderAccountUI();
+loadClients().catch(err => {
+  console.error("Client load failed:", err);
+});

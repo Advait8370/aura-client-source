@@ -1,44 +1,94 @@
-const { ipcRenderer } = require("electron");
+const crypto = require("crypto");
 
 const loginStatus = document.getElementById("loginStatus");
 
-function setStatus(msg) {
-  loginStatus.innerText = msg;
+function setStatus(message) {
+  loginStatus.innerText = message;
 }
 
-async function loginMicrosoft() {
-  try {
-    setStatus("Opening Microsoft login...");
+function getAccounts() {
+  return JSON.parse(localStorage.getItem("auraAccounts") || "[]");
+}
 
-    const data = await ipcRenderer.invoke("login-microsoft");
+function setAccounts(accounts) {
+  localStorage.setItem("auraAccounts", JSON.stringify(accounts));
+}
 
-    const account = {
-      type: "microsoft",
-      name: data.name,
-      uuid: data.uuid,
-      accessToken: data.access_token,
-      clientToken: data.client_token || "AuraLauncher"
-    };
+function saveAccount(account) {
+  const accounts = getAccounts();
+  const index = accounts.findIndex(saved => saved.id === account.id);
 
-    localStorage.setItem("auraAccount", JSON.stringify(account));
-
-    setStatus("Logged in as " + account.name);
-
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 700);
-  } catch (err) {
-    setStatus("Microsoft login failed");
-    alert(err.message);
+  if (index >= 0) {
+    accounts[index] = account;
+  } else {
+    accounts.push(account);
   }
+
+  setAccounts(accounts);
+  localStorage.setItem("auraAccount", JSON.stringify(account));
+}
+
+function offlineUuid(username) {
+  const hash = crypto
+    .createHash("md5")
+    .update("OfflinePlayer:" + username)
+    .digest();
+
+  hash[6] = (hash[6] & 0x0f) | 0x30;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+
+  const hex = hash.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20)
+  ].join("-");
+}
+
+function createAvatarUrl(account) {
+  return `https://mc-heads.net/avatar/${encodeURIComponent(account.name)}/128`;
+}
+
+function validUsername(username) {
+  return /^[A-Za-z0-9_]{3,16}$/.test(username);
+}
+
+async function loginOffline() {
+  const username = document.getElementById("offlineUsername").value.trim();
+
+  if (!validUsername(username)) {
+    setStatus("Use a 3-16 character username with letters, numbers, or underscores.");
+    return;
+  }
+
+  const account = {
+    id: "offline:" + username.toLowerCase(),
+    type: "offline",
+    name: username,
+    uuid: offlineUuid(username),
+    accessToken: "0",
+    clientToken: "AuraLauncher",
+    avatarUrl: createAvatarUrl({ name: username }),
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  saveAccount(account);
+  setStatus("Logged in as " + account.name);
+
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 500);
 }
 
 async function loginEly() {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const username = document.getElementById("elyUsername").value.trim();
+  const password = document.getElementById("elyPassword").value.trim();
 
   if (!username || !password) {
-    setStatus("Enter Ely.by username and password");
+    setStatus("Enter Ely.by username and password.");
     return;
   }
 
@@ -60,29 +110,32 @@ async function loginEly() {
 
     const data = await res.json();
 
-    if (!res.ok || !data.accessToken) {
-      setStatus("Ely.by login failed");
-      alert(data.errorMessage || "Wrong username/password");
+    if (!res.ok || !data.accessToken || !data.selectedProfile) {
+      setStatus("Ely.by login failed.");
+      alert(data.errorMessage || "Wrong username or password.");
       return;
     }
 
     const account = {
+      id: "ely:" + data.selectedProfile.id,
       type: "ely",
       name: data.selectedProfile.name,
       uuid: data.selectedProfile.id,
       accessToken: data.accessToken,
-      clientToken: data.clientToken || "AuraLauncher"
+      clientToken: data.clientToken || "AuraLauncher",
+      avatarUrl: createAvatarUrl({ name: data.selectedProfile.name }),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
 
-    localStorage.setItem("auraAccount", JSON.stringify(account));
-
+    saveAccount(account);
     setStatus("Logged in as " + account.name);
 
     setTimeout(() => {
       window.location.href = "index.html";
-    }, 700);
+    }, 500);
   } catch (err) {
-    setStatus("Login error");
+    setStatus("Login error.");
     alert(err.message);
   }
 }

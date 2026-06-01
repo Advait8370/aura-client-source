@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
-const msmc = require("msmc");
+const { autoUpdater } = require("electron-updater");
 
 const {
   loadClients,
@@ -11,23 +11,6 @@ const {
 } = require("./launcher/launch");
 
 let mainWindow = null;
-let updateCheckInProgress = false;
-
-function sendToRenderer(channel, message) {
-  if (mainWindow && mainWindow.webContents) {
-    mainWindow.webContents.send(channel, message);
-  }
-}
-
-function logUpdate(message) {
-  console.log("[auto-update]", message);
-  sendToRenderer("launch-log", "[auto-update] " + message);
-}
-
-function sendUpdateStatus(message) {
-  console.log("[auto-update]", message);
-  sendToRenderer("launch-status", message);
-}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -47,18 +30,6 @@ function createWindow() {
   mainWindow.loadFile("index.html");
   mainWindow.removeMenu();
 }
-
-
-ipcMain.handle("login-microsoft", async () => {
-  const xboxManager = new msmc.XboxManager();
-  const token = await xboxManager.launch("electron");
-
-  if (!token || !token.mclc()) {
-    throw new Error("Microsoft login failed");
-  }
-
-  return token.mclc();
-});
 
 ipcMain.handle("select-java", async () => {
   const result = await dialog.showOpenDialog({
@@ -82,7 +53,7 @@ ipcMain.handle("select-game-dir", async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle("open-external", async (e, url) => {
+ipcMain.handle("open-external", async (event, url) => {
   await shell.openExternal(url);
   return true;
 });
@@ -91,7 +62,7 @@ ipcMain.handle("load-clients", async () => {
   return await loadClients();
 });
 
-ipcMain.handle("check-client", async (e, data) => {
+ipcMain.handle("check-client", async (event, data) => {
   const clientId = typeof data === "string" ? data : data.client;
   const gameDir = typeof data === "string" ? null : data.gameDir;
 
@@ -102,7 +73,7 @@ ipcMain.handle("check-client", async (e, data) => {
   return await isClientInstalled(clientId, gameDir);
 });
 
-ipcMain.handle("install-client", async (e, data) => {
+ipcMain.handle("install-client", async (event, data) => {
   const clientId = typeof data === "string" ? data : data.client;
   const gameDir = typeof data === "string" ? null : data.gameDir;
 
@@ -112,26 +83,42 @@ ipcMain.handle("install-client", async (e, data) => {
 
   return await installClient(
     clientId,
-    msg => e.sender.send("launch-log", msg),
-    percent => e.sender.send("download-progress", percent),
+    msg => event.sender.send("launch-log", msg),
+    (percent, downloaded, total, speed, eta) => {
+      event.sender.send("download-progress", {
+        percent,
+        downloaded,
+        total,
+        speed,
+        eta
+      });
+    },
     gameDir
   );
 });
 
-ipcMain.handle("repair-client", async (e, data) => {
+ipcMain.handle("repair-client", async (event, data) => {
   return await repairClient(
     data.client,
-    msg => e.sender.send("launch-log", msg),
-    percent => e.sender.send("download-progress", percent),
+    msg => event.sender.send("launch-log", msg),
+    (percent, downloaded, total, speed, eta) => {
+      event.sender.send("download-progress", {
+        percent,
+        downloaded,
+        total,
+        speed,
+        eta
+      });
+    },
     data.gameDir
   );
 });
 
-ipcMain.handle("delete-client", async (e, data) => {
+ipcMain.handle("delete-client", async (event, data) => {
   return await deleteClient(
     data.client,
     data.gameDir,
-    msg => e.sender.send("launch-log", msg)
+    msg => event.sender.send("launch-log", msg)
   );
 });
 
@@ -141,10 +128,19 @@ ipcMain.on("launch-game", async (event, data) => {
 
     if (!(await isClientInstalled(data.client, data.gameDir))) {
       event.reply("launch-status", "Installing client...");
+
       await installClient(
         data.client,
         msg => event.reply("launch-log", msg),
-        percent => event.reply("download-progress", percent),
+        (percent, downloaded, total, speed, eta) => {
+          event.reply("download-progress", {
+            percent,
+            downloaded,
+            total,
+            speed,
+            eta
+          });
+        },
         data.gameDir
       );
     }
@@ -178,8 +174,52 @@ ipcMain.on("launch-game", async (event, data) => {
   }
 });
 
-app.whenReady().then(createWindow);
+ipcMain.handle("check-for-updates", async () => {
+  return await autoUpdater.checkForUpdates();
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  setupAutoUpdater();
+  autoUpdater.checkForUpdatesAndNotify();
+});
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true;
+
+  autoUpdater.on("checking-for-update", () => {
+    sendToRenderer("update-status", "Checking for updates...");
+  });
+
+  autoUpdater.on("update-available", info => {
+    sendToRenderer("update-status", "Downloading update " + info.version);
+  });
+
+  autoUpdater.on("download-progress", progress => {
+    sendToRenderer("update-progress", progress.percent);
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    sendToRenderer("update-status", "Update ready. Restarting...");
+
+    setTimeout(() => {
+      autoUpdater.quitAndInstall();
+    }, 3000);
+  });
+
+  autoUpdater.on("error", err => {
+    sendToRenderer("update-status", "Update error: " + err.message);
+  });
+}
+
+function sendToRenderer(channel, data) {
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send(channel, data);
+  }
+}

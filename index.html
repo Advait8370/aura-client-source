@@ -16,18 +16,18 @@
       </div>
     </div>
 
-    <button class="side-btn active" onclick="showPage('home', this)">🏠 Home</button>
-    <button class="side-btn" onclick="window.location.href='login.html'">👤 Account</button>
-    <button class="side-btn" onclick="showPage('clients', this)">🧩 Clients</button>
-    <button class="side-btn" onclick="showPage('settings', this)">⚙ Settings</button>
-    <button class="side-btn" onclick="showPage('skins', this)">🎨 Skins</button>
+    <button class="side-btn active" onclick="showPage('home', this)">Home</button>
+    <button class="side-btn" onclick="showPage('account', this)">Account</button>
+    <button class="side-btn" onclick="showPage('clients', this)">Clients</button>
+    <button class="side-btn" onclick="showPage('settings', this)">Settings</button>
+    <button class="side-btn" onclick="showPage('skins', this)">Skins</button>
 
-    <div class="account" onclick="window.location.href='login.html'">
+    <div class="account" onclick="showPage('account')">
       <img id="skinAvatar" class="skin-avatar" src="" onerror="this.style.display='none'">
-      <div class="avatar" id="defaultAvatar">👤</div>
+      <div class="avatar" id="defaultAvatar">A</div>
       <div>
         <b id="accountName">Not logged in</b>
-        <p>Click to login</p>
+        <p id="accountType">Add an account</p>
       </div>
     </div>
 
@@ -35,14 +35,13 @@
   </aside>
 
   <main class="main">
-
     <section id="page-home" class="page active-page">
       <header class="topbar">
         <div>
           <h2>Aura Client</h2>
           <p>Fast cloud Minecraft client launcher</p>
         </div>
-        <button class="dark-btn small" onclick="selectJava()">☕ Java</button>
+        <button class="dark-btn small" onclick="selectJava()">Java</button>
       </header>
 
       <section class="banner">
@@ -76,6 +75,46 @@
             <span>Live logs</span>
           </div>
           <textarea id="console" readonly></textarea>
+        </div>
+      </section>
+    </section>
+
+    <section id="page-account" class="page">
+      <header class="topbar">
+        <div>
+          <h2>Account</h2>
+          <p>Manage Offline and Ely.by accounts.</p>
+        </div>
+        <button class="play-btn small" onclick="openLoginPage()">Add Account</button>
+      </header>
+
+      <section class="panel-grid account-grid">
+        <div class="card current-account-card">
+          <h3>Current Account</h3>
+          <div class="account-profile">
+            <img id="accountAvatarLarge" class="skin-preview account-preview" src="" onerror="this.style.display='none'">
+            <div>
+              <h3 id="accountNameLarge">Not logged in</h3>
+              <p id="currentAccountStatus">No account selected</p>
+              <p id="accountUuid" class="muted">UUID unavailable</p>
+            </div>
+          </div>
+
+          <div class="install-state" id="accountStatusIndicator">Signed out</div>
+        </div>
+
+        <div class="card account-manager-card">
+          <h3>Account Switcher</h3>
+
+          <label>Saved Accounts</label>
+          <select id="accountSelect" onchange="switchAccount(this.value)"></select>
+
+          <div class="button-row">
+            <button class="dark-btn" onclick="openLoginPage()">Add</button>
+            <button class="danger-btn" onclick="deleteCurrentAccount()">Delete</button>
+          </div>
+
+          <button class="dark-btn full-btn" onclick="logoutAccount()">Logout</button>
         </div>
       </section>
     </section>
@@ -123,6 +162,20 @@
           <option value="8">8 GB</option>
         </select>
 
+        <label>Theme</label>
+        <select id="theme" onchange="changeTheme()">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+
+        <label>Accent Colour</label>
+        <select id="accentColor" onchange="changeAccent()">
+          <option value="#22c55e">Green</option>
+          <option value="#3b82f6">Blue</option>
+          <option value="#a855f7">Purple</option>
+          <option value="#ef4444">Red</option>
+        </select>
+
         <label>Java Path</label>
         <div class="path-row">
           <input id="javaPathInput" readonly placeholder="Default: java">
@@ -139,6 +192,8 @@
           <input id="closeAfterLaunch" type="checkbox" onchange="saveSettings()">
           Close launcher after game starts
         </label>
+
+        <button class="dark-btn full-btn" onclick="checkForUpdates()">Check For Updates</button>
       </div>
     </section>
 
@@ -153,11 +208,10 @@
       <div class="card skin-card">
         <img id="skinPreview" class="skin-preview" src="" onerror="this.style.display='none'">
         <h3 id="skinName">Not logged in</h3>
-        <p>Login with Ely.by to show your skin.</p>
+        <p id="skinHelp">Login with Ely.by to show your skin.</p>
         <button class="play-btn" onclick="openElySkins()">Open Ely.by Skins</button>
       </div>
     </section>
-
   </main>
 </div>
 

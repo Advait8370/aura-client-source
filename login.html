@@ -11,14 +11,19 @@
     <div class="logo-box login-logo">A</div>
 
     <h1>Aura Account</h1>
-    <p class="muted">Login to continue</p>
+    <p class="muted">Choose an Offline or Ely.by account.</p>
 
-    <button class="ms-btn" onclick="loginMicrosoft()">Login with Microsoft</button>
+    <label>Offline Username</label>
+    <input id="offlineUsername" placeholder="Player name">
+    <button class="play-btn" onclick="loginOffline()">Login Offline</button>
 
     <div class="divider">or</div>
 
-    <input id="username" placeholder="Ely.by Username / Email">
-    <input id="password" type="password" placeholder="Ely.by Password">
+    <label>Ely.by Username / Email</label>
+    <input id="elyUsername" placeholder="Username or email">
+
+    <label>Ely.by Password</label>
+    <input id="elyPassword" type="password" placeholder="Password">
 
     <button class="play-btn" onclick="loginEly()">Login with Ely.by</button>
     <button class="dark-btn" onclick="goBack()">Back</button>

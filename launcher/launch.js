@@ -52,8 +52,15 @@ async function getClient(id) {
   return client;
 }
 
-async function downloadFile(url, dest, log = console.log, progress = () => {}) {
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
+async function downloadFile(
+  url,
+  dest,
+  log = console.log,
+  progress = () => {}
+) {
+  fs.mkdirSync(path.dirname(dest), {
+    recursive: true
+  });
 
   if (fs.existsSync(dest)) {
     fs.unlinkSync(dest);
@@ -63,52 +70,131 @@ async function downloadFile(url, dest, log = console.log, progress = () => {}) {
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "AuraLauncher/1.1"
+      "User-Agent": "AuraLauncher/1.2.5"
     }
   });
 
   if (!res.ok) {
-    throw new Error("Download failed: HTTP " + res.status + " - " + url);
+    throw new Error(
+      "Download failed: HTTP " +
+      res.status +
+      " - " +
+      url
+    );
   }
 
-  const total = Number(res.headers.get("content-length")) || 0;
+  const total =
+    Number(
+      res.headers.get("content-length")
+    ) || 0;
+
   let downloaded = 0;
 
-  const file = fs.createWriteStream(dest);
+  const startTime = Date.now();
 
-  await new Promise((resolve, reject) => {
-    res.body.on("data", chunk => {
-      downloaded += chunk.length;
+  const file =
+    fs.createWriteStream(dest);
 
-      if (total > 0) {
-        const percent = Math.round((downloaded / total) * 100);
-        progress(percent, downloaded, total);
-      }
-    });
+  await new Promise(
+    (resolve, reject) => {
 
-    res.body.pipe(file);
-    res.body.on("error", reject);
-    file.on("finish", resolve);
-    file.on("error", reject);
-  });
+      res.body.on("data", chunk => {
 
-  progress(100, downloaded, total);
+        downloaded += chunk.length;
 
-  const buffer = fs.readFileSync(dest);
+        const elapsed =
+          (Date.now() - startTime) / 1000;
 
-  if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
-    const preview = buffer.toString("utf8", 0, Math.min(buffer.length, 300));
+        const speed =
+          downloaded /
+          1024 /
+          1024 /
+          Math.max(elapsed, 1);
+
+        if (total > 0) {
+
+          const percent =
+            Math.round(
+              (downloaded / total) * 100
+            );
+
+          const remaining =
+            total - downloaded;
+
+          const eta =
+            remaining /
+            Math.max(
+              downloaded / Math.max(elapsed, 1),
+              1
+            );
+
+          progress(
+            percent,
+            downloaded,
+            total,
+            speed,
+            eta
+          );
+
+          log(
+            `Progress: ${percent}% | ` +
+            `${speed.toFixed(2)} MB/s | ` +
+            `ETA ${Math.round(eta)}s`
+          );
+        }
+      });
+
+      res.body.pipe(file);
+
+      res.body.on("error", reject);
+
+      file.on("finish", resolve);
+
+      file.on("error", reject);
+    }
+  );
+
+  progress(
+    100,
+    downloaded,
+    total,
+    0,
+    0
+  );
+
+  const buffer =
+    fs.readFileSync(dest);
+
+  if (
+    buffer.length < 4 ||
+    buffer[0] !== 0x50 ||
+    buffer[1] !== 0x4b
+  ) {
+
+    const preview =
+      buffer.toString(
+        "utf8",
+        0,
+        Math.min(
+          buffer.length,
+          300
+        )
+      );
 
     fs.unlinkSync(dest);
 
     throw new Error(
       "Downloaded file is not a valid ZIP.\n" +
       "Check your clients.json URL and re-upload the client ZIP.\n\n" +
-      "Preview:\n" + preview
+      "Preview:\n" +
+      preview
     );
   }
 
-  log("Downloaded valid ZIP: " + path.basename(dest));
+  log(
+    "Downloaded valid ZIP: " +
+    path.basename(dest)
+  );
 }
 
 async function isClientInstalled(id, gameDir) {
@@ -203,21 +289,26 @@ async function launchMinecraft(options, log = console.log, onClose = () => {}) {
   const client = await getClient(options.client);
   const root = rootDir(options.gameDir);
 
-  if (!options.username || !options.accessToken || !options.uuid) {
-    throw new Error("Login with Ely.by first");
+  if (!options.username || !options.uuid) {
+    throw new Error("Select an account first");
   }
+
+  const accountType =
+    options.accountType === "ely"
+      ? "ely"
+      : "offline";
 
   const launchOptions = {
     root,
 
     authorization: {
-      access_token: options.accessToken,
+      access_token: options.accessToken || "0",
       client_token: options.clientToken || "AuraLauncher",
       uuid: options.uuid,
       name: options.username,
       user_properties: "{}",
       meta: {
-        type: "ely"
+        type: accountType
       }
     },
 
