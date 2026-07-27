@@ -4,13 +4,62 @@
   <meta charset="UTF-8">
   <title>Aura Login</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Scoped GUI Updates for Login Page */
+    .login-card {
+      width: min(420px, 100%);
+      padding: 40px 32px;
+    }
+    
+    /* Modern Tab Navigation */
+    .login-tabs {
+      display: flex;
+      background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.2s var(--ease);
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      background: var(--card);
+      color: var(--text);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border);
+    }
+    
+    .tab-content { display: none; animation: pageIn 0.35s var(--ease); }
+    .tab-content.active { display: block; }
+    
+    /* Custom Button Branding */
+    .ms-btn {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+      color: white;
+    }
+    .offline-btn {
+      background: linear-gradient(135deg, #64748b, #475569);
+      box-shadow: 0 10px 25px rgba(71, 85, 105, 0.3);
+      color: white;
+    }
+  </style>
 </head>
 <body>
 
-<!-- TITLEBAR -->
+<!-- SECURE TITLEBAR -->
 <div class="titlebar">
   <div class="titlebar-drag-region">
-    <span class="titlebar-title">Aura Login</span>
+    <span class="titlebar-title">Aura Authentication</span>
   </div>
   <div class="titlebar-controls">
     <button onclick="window.electron.ipcRenderer.send('window-minimize')">—</button>
@@ -19,39 +68,50 @@
   </div>
 </div>
 
-<div class="login-page">
-  <div class="login-card">
-    <div class="logo-box login-logo">A</div>
+<div class="login-page" style="position: relative; overflow: hidden;">
+  
+  <!-- Ambient Background Glows -->
+  <div style="position:absolute; top:-10%; left:-10%; width:500px; height:500px; background:var(--accent-glow); border-radius:50%; filter:blur(100px); z-index:0; opacity: 0.5;"></div>
+  <div style="position:absolute; bottom:-20%; right:-10%; width:600px; height:600px; background:rgba(59, 130, 246, 0.15); border-radius:50%; filter:blur(100px); z-index:0; opacity: 0.7;"></div>
 
-    <h1>Aura Account</h1>
-    <p class="muted">Choose an account type below to continue.</p>
+  <div class="login-card" style="position: relative; z-index: 1;">
+    <div class="logo-box" style="margin: 0 auto 16px;">A</div>
+    <h1 style="margin-bottom: 6px;">Welcome Back</h1>
+    <p class="muted" style="margin-bottom: 24px;">Sign in to your Minecraft profile to continue.</p>
 
-    <!-- MICROSOFT LOGIN -->
-    <button class="play-btn" style="margin-bottom: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35);" onclick="loginMicrosoft()">
-      Login with Microsoft
-    </button>
+    <!-- TAB HEADERS -->
+    <div class="login-tabs">
+      <button class="tab-btn active" onclick="switchLoginTab('microsoft', this)">Microsoft</button>
+      <button class="tab-btn" onclick="switchLoginTab('elyby', this)">Ely.by</button>
+      <button class="tab-btn" onclick="switchLoginTab('offline', this)">Offline</button>
+    </div>
 
-    <div class="divider">or</div>
+    <!-- TAB 1: MICROSOFT -->
+    <div id="tab-microsoft" class="tab-content active">
+      <p class="muted" style="font-size: 13px; margin-bottom: 20px; line-height: 1.6;">
+        Official Microsoft authentication. Supports Xbox Game Pass and fully migrated Mojang accounts.
+      </p>
+      <button class="play-btn ms-btn" onclick="loginMicrosoft()">Login with Microsoft</button>
+    </div>
 
-    <!-- OFFLINE LOGIN -->
-    <label>Offline Username</label>
-    <input id="offlineUsername" placeholder="Player name">
-    <button class="play-btn" onclick="loginOffline()">Login Offline</button>
+    <!-- TAB 2: ELY.BY -->
+    <div id="tab-elyby" class="tab-content">
+      <input id="elyUsername" placeholder="Username or email" style="margin-bottom:12px;">
+      <input id="elyPassword" type="password" placeholder="Password" style="margin-bottom:16px;">
+      <button class="play-btn" onclick="loginEly()">Login with Ely.by</button>
+    </div>
 
-    <div class="divider">or</div>
+    <!-- TAB 3: OFFLINE -->
+    <div id="tab-offline" class="tab-content">
+      <p class="muted" style="font-size: 13px; margin-bottom: 16px;">
+        Play locally without authentication. Skin syncing and premium servers will be disabled.
+      </p>
+      <input id="offlineUsername" placeholder="Player name" style="margin-bottom:16px;">
+      <button class="play-btn offline-btn" onclick="loginOffline()">Play Offline</button>
+    </div>
 
-    <!-- ELY.BY LOGIN -->
-    <label>Ely.by Username / Email</label>
-    <input id="elyUsername" placeholder="Username or email">
-
-    <label>Ely.by Password</label>
-    <input id="elyPassword" type="password" placeholder="Password">
-
-    <button class="play-btn" onclick="loginEly()">Login with Ely.by</button>
-    
-    <button class="dark-btn" onclick="goBack()" style="margin-top: 16px;">Back to Home</button>
-
-    <p id="loginStatus" class="login-status">Ready</p>
+    <p id="loginStatus" style="margin-top: 24px; font-weight: 600; color: var(--text); font-size: 13px;">Ready</p>
+    <button class="dark-btn" onclick="goBack()" style="width: 100%; margin-top: 12px;">Cancel & Go Back</button>
   </div>
 </div>
 

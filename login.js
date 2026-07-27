@@ -144,3 +144,22 @@ async function loginEly() {
 function goBack() {
   window.location.href = "index.html";
 }
+// --- GUI TAB CONTROLLER ---
+function switchLoginTab(tabId, btnElement) {
+  // Hide all tab content
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  
+  // Remove active styling from all buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  // Show the selected tab and highlight the button
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btnElement.classList.add('active');
+  
+  // Reset the status message cleanly
+  setStatus("Ready");
+}
