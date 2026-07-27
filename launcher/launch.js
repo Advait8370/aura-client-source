@@ -5,8 +5,7 @@ const fs = require("fs");
 const fetch = require("node-fetch");
 const extract = require("extract-zip");
 
-const CLIENTS_JSON_URL =
-"https://advait8370.github.io/aura-launcher-cloud/clients.json";
+const CLIENTS_JSON_URL = "https://advait8370.github.io/aura-launcher-cloud/clients.json";
 
 let cachedClients = [];
 
@@ -25,7 +24,6 @@ async function loadClients() {
   }
 
   cachedClients = await res.json();
-  console.log("CLIENTS JSON:", cachedClients);
 
   if (!Array.isArray(cachedClients)) {
     throw new Error("clients.json must be an array");
@@ -52,15 +50,8 @@ async function getClient(id) {
   return client;
 }
 
-async function downloadFile(
-  url,
-  dest,
-  log = console.log,
-  progress = () => {}
-) {
-  fs.mkdirSync(path.dirname(dest), {
-    recursive: true
-  });
+async function downloadFile(url, dest, log = console.log, progress = () => {}) {
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
 
   if (fs.existsSync(dest)) {
     fs.unlinkSync(dest);
@@ -69,151 +60,61 @@ async function downloadFile(
   log("Downloading from: " + url);
 
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "AuraLauncher/1.2.5"
-    }
+    headers: { "User-Agent": "AuraLauncher/1.3.2" }
   });
 
   if (!res.ok) {
-    throw new Error(
-      "Download failed: HTTP " +
-      res.status +
-      " - " +
-      url
-    );
+    throw new Error("Download failed: HTTP " + res.status + " - " + url);
   }
 
-  const total =
-    Number(
-      res.headers.get("content-length")
-    ) || 0;
-
+  const total = Number(res.headers.get("content-length")) || 0;
   let downloaded = 0;
-
   const startTime = Date.now();
+  const file = fs.createWriteStream(dest);
 
-  const file =
-    fs.createWriteStream(dest);
+  await new Promise((resolve, reject) => {
+    res.body.on("data", chunk => {
+      downloaded += chunk.length;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed = downloaded / 1024 / 1024 / Math.max(elapsed, 1);
 
-  await new Promise(
-    (resolve, reject) => {
+      if (total > 0) {
+        const percent = Math.round((downloaded / total) * 100);
+        const remaining = total - downloaded;
+        const eta = remaining / Math.max(downloaded / Math.max(elapsed, 1), 1);
 
-      res.body.on("data", chunk => {
+        progress(percent, downloaded, total, speed, eta);
+        log(`Progress: ${percent}% | ${speed.toFixed(2)} MB/s | ETA ${Math.round(eta)}s`);
+      }
+    });
 
-        downloaded += chunk.length;
+    res.body.pipe(file);
+    res.body.on("error", reject);
+    file.on("finish", resolve);
+    file.on("error", reject);
+  });
 
-        const elapsed =
-          (Date.now() - startTime) / 1000;
+  progress(100, downloaded, total, 0, 0);
 
-        const speed =
-          downloaded /
-          1024 /
-          1024 /
-          Math.max(elapsed, 1);
-
-        if (total > 0) {
-
-          const percent =
-            Math.round(
-              (downloaded / total) * 100
-            );
-
-          const remaining =
-            total - downloaded;
-
-          const eta =
-            remaining /
-            Math.max(
-              downloaded / Math.max(elapsed, 1),
-              1
-            );
-
-          progress(
-            percent,
-            downloaded,
-            total,
-            speed,
-            eta
-          );
-
-          log(
-            `Progress: ${percent}% | ` +
-            `${speed.toFixed(2)} MB/s | ` +
-            `ETA ${Math.round(eta)}s`
-          );
-        }
-      });
-
-      res.body.pipe(file);
-
-      res.body.on("error", reject);
-
-      file.on("finish", resolve);
-
-      file.on("error", reject);
-    }
-  );
-
-  progress(
-    100,
-    downloaded,
-    total,
-    0,
-    0
-  );
-
-  const buffer =
-    fs.readFileSync(dest);
-
-  if (
-    buffer.length < 4 ||
-    buffer[0] !== 0x50 ||
-    buffer[1] !== 0x4b
-  ) {
-
-    const preview =
-      buffer.toString(
-        "utf8",
-        0,
-        Math.min(
-          buffer.length,
-          300
-        )
-      );
-
+  const buffer = fs.readFileSync(dest);
+  if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
+    const preview = buffer.toString("utf8", 0, Math.min(buffer.length, 300));
     fs.unlinkSync(dest);
 
     throw new Error(
-      "Downloaded file is not a valid ZIP.\n" +
-      "Check your clients.json URL and re-upload the client ZIP.\n\n" +
-      "Preview:\n" +
-      preview
+      "Downloaded file is not a valid ZIP.\nCheck clients.json URL and re-upload client ZIP.\n\nPreview:\n" + preview
     );
   }
 
-  log(
-    "Downloaded valid ZIP: " +
-    path.basename(dest)
-  );
+  log("Downloaded valid ZIP: " + path.basename(dest));
 }
 
 async function isClientInstalled(id, gameDir) {
   const client = await getClient(id);
   const root = rootDir(gameDir);
 
-  const jsonPath = path.join(
-    root,
-    "versions",
-    client.profile,
-    `${client.profile}.json`
-  );
-
-  const jarPath = path.join(
-    root,
-    "versions",
-    client.profile,
-    `${client.profile}.jar`
-  );
+  const jsonPath = path.join(root, "versions", client.profile, `${client.profile}.json`);
+  const jarPath = path.join(root, "versions", client.profile, `${client.profile}.jar`);
 
   return fs.existsSync(jsonPath) && fs.existsSync(jarPath);
 }
@@ -261,10 +162,8 @@ async function installClient(id, log = console.log, progress = () => {}, gameDir
 
   if (!(await isClientInstalled(id, gameDir))) {
     throw new Error(
-      "Client ZIP extracted but version profile was not found.\n" +
-      "ZIP must contain:\n" +
-      "versions/" + client.profile + "/" + client.profile + ".json\n" +
-      "versions/" + client.profile + "/" + client.profile + ".jar"
+      "Client ZIP extracted but version profile was not found.\nZIP must contain:\nversions/" +
+      client.profile + "/" + client.profile + ".json\nversions/" + client.profile + "/" + client.profile + ".jar"
     );
   }
 
@@ -293,30 +192,22 @@ async function launchMinecraft(options, log = console.log, onClose = () => {}) {
     throw new Error("Select an account first");
   }
 
-  const accountType =
-    options.accountType === "ely"
-      ? "ely"
-      : "offline";
+  const accountType = options.accountType === "ely" ? "ely" : "offline";
 
   const launchOptions = {
     root,
-
     authorization: {
       access_token: options.accessToken || "0",
       client_token: options.clientToken || "AuraLauncher",
       uuid: options.uuid,
       name: options.username,
       user_properties: "{}",
-      meta: {
-        type: accountType
-      }
+      meta: { type: accountType }
     },
-
     version: {
       number: client.profile,
       type: "release"
     },
-
     memory: {
       max: `${options.ram || "2"}G`,
       min: "1G"

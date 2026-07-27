@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Aura Launcher</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+  <div class="titlebar-drag-region">
+    <span class="titlebar-title">Aura Launcher</span>
+  </div>
+  <div class="titlebar-controls">
+    <button onclick="window.electron.ipcRenderer.send('window-minimize')">—</button>
+    <button onclick="window.electron.ipcRenderer.send('window-maximize')">▢</button>
+    <button class="close" onclick="window.electron.ipcRenderer.send('window-close')">✕</button>
+  </div>
+</div>
 
 <div class="app">
   <aside class="sidebar">
@@ -16,11 +29,21 @@
       </div>
     </div>
 
-    <button class="side-btn active" onclick="showPage('home', this)">Home</button>
-    <button class="side-btn" onclick="showPage('account', this)">Account</button>
-    <button class="side-btn" onclick="showPage('clients', this)">Clients</button>
-    <button class="side-btn" onclick="showPage('settings', this)">Settings</button>
-    <button class="side-btn" onclick="showPage('skins', this)">Skins</button>
+    <button class="side-btn active" onclick="showPage('home', this)">
+      <span>🏠</span> Home
+    </button>
+    <button class="side-btn" onclick="showPage('account', this)">
+      <span>👤</span> Account
+    </button>
+    <button class="side-btn" onclick="showPage('clients', this)">
+      <span>📦</span> Clients
+    </button>
+    <button class="side-btn" onclick="showPage('settings', this)">
+      <span>⚙️</span> Settings
+    </button>
+    <button class="side-btn" onclick="showPage('skins', this)">
+      <span>👕</span> Skins
+    </button>
 
     <div class="account" onclick="showPage('account')">
       <img id="skinAvatar" class="skin-avatar" src="" onerror="this.style.display='none'">
@@ -35,20 +58,21 @@
   </aside>
 
   <main class="main">
+    <!-- PAGE: HOME -->
     <section id="page-home" class="page active-page">
       <header class="topbar">
         <div>
-          <h2>Aura Client</h2>
+          <h2>Dashboard</h2>
           <p>Fast cloud Minecraft client launcher</p>
         </div>
-        <button class="dark-btn small" onclick="selectJava()">Java</button>
+        <button class="dark-btn small" onclick="selectJava()">Java Path</button>
       </header>
 
       <section class="banner">
         <div>
           <span>AURA CLIENT</span>
-          <h3>Ready to play?</h3>
-          <p>Click PLAY. If the client is missing, Aura downloads it automatically.</p>
+          <h3>Ready to Play?</h3>
+          <p>Select your client version below and hit PLAY to launch Minecraft instantly.</p>
         </div>
       </section>
 
@@ -70,60 +94,59 @@
         </div>
 
         <div class="card console-card">
-          <div class="console-head">
-            <h3>Console</h3>
-            <span>Live logs</span>
+          <div class="topbar" style="margin-bottom:0;">
+            <h3>Console Output</h3>
+            <span class="muted">Live logs</span>
           </div>
-          <textarea id="console" readonly></textarea>
+          <textarea id="console" readonly placeholder="Launcher output will stream here..."></textarea>
         </div>
       </section>
     </section>
 
+    <!-- PAGE: ACCOUNT -->
     <section id="page-account" class="page">
       <header class="topbar">
         <div>
-          <h2>Account</h2>
-          <p>Manage Offline and Ely.by accounts.</p>
+          <h2>Accounts</h2>
+          <p>Manage Offline, Ely.by, and Microsoft player profiles.</p>
         </div>
         <button class="play-btn small" onclick="openLoginPage()">Add Account</button>
       </header>
 
-      <section class="panel-grid account-grid">
-        <div class="card current-account-card">
-          <h3>Current Account</h3>
-          <div class="account-profile">
-            <img id="accountAvatarLarge" class="skin-preview account-preview" src="" onerror="this.style.display='none'">
+      <section class="panel-grid">
+        <div class="card">
+          <h3>Active Profile</h3>
+          <div style="display:flex; gap:16px; align-items:center; margin-top:16px;">
+            <img id="accountAvatarLarge" class="skin-preview" style="width:80px; height:80px; margin:0;" src="" onerror="this.style.display='none'">
             <div>
               <h3 id="accountNameLarge">Not logged in</h3>
               <p id="currentAccountStatus">No account selected</p>
               <p id="accountUuid" class="muted">UUID unavailable</p>
             </div>
           </div>
-
-          <div class="install-state" id="accountStatusIndicator">Signed out</div>
+          <div class="install-state" id="accountStatusIndicator" style="margin-top:20px;">Signed out</div>
         </div>
 
-        <div class="card account-manager-card">
+        <div class="card">
           <h3>Account Switcher</h3>
-
           <label>Saved Accounts</label>
           <select id="accountSelect" onchange="switchAccount(this.value)"></select>
 
           <div class="button-row">
-            <button class="dark-btn" onclick="openLoginPage()">Add</button>
+            <button class="dark-btn" onclick="openLoginPage()">Add New</button>
             <button class="danger-btn" onclick="deleteCurrentAccount()">Delete</button>
           </div>
-
           <button class="dark-btn full-btn" onclick="logoutAccount()">Logout</button>
         </div>
       </section>
     </section>
 
+    <!-- PAGE: CLIENTS -->
     <section id="page-clients" class="page">
       <header class="topbar">
         <div>
           <h2>Client Manager</h2>
-          <p>Install, repair, or delete Aura Client versions.</p>
+          <p>Install, repair, or remove custom Minecraft clients.</p>
         </div>
       </header>
 
@@ -139,22 +162,23 @@
         <p id="managerPercent">0%</p>
 
         <div class="button-row">
-          <button class="dark-btn" onclick="repairSelectedClient()">Repair</button>
-          <button class="danger-btn" onclick="deleteSelectedClient()">Delete</button>
+          <button class="dark-btn" onclick="repairSelectedClient()">Repair Client</button>
+          <button class="danger-btn" onclick="deleteSelectedClient()">Delete Client</button>
         </div>
       </div>
     </section>
 
+    <!-- PAGE: SETTINGS -->
     <section id="page-settings" class="page">
       <header class="topbar">
         <div>
-          <h2>Settings</h2>
-          <p>Configure RAM, Java, game directory, and launch behavior.</p>
+          <h2>Launcher Settings</h2>
+          <p>Configure Java memory allocation, theme, and game directory.</p>
         </div>
       </header>
 
-      <div class="card settings-card">
-        <label>RAM</label>
+      <div class="card" style="max-width: 640px;">
+        <label>Memory (RAM)</label>
         <select id="ram" onchange="saveSettings()">
           <option value="2">2 GB</option>
           <option value="4">4 GB</option>
@@ -164,73 +188,93 @@
 
         <label>Theme</label>
         <select id="theme" onchange="changeTheme()">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
+          <option value="dark">Dark Theme</option>
+          <option value="light">Light Theme</option>
         </select>
 
-        <label>Accent Colour</label>
+        <label>Accent Highlight</label>
         <select id="accentColor" onchange="changeAccent()">
-          <option value="#22c55e">Green</option>
-          <option value="#3b82f6">Blue</option>
-          <option value="#a855f7">Purple</option>
-          <option value="#ef4444">Red</option>
+          <option value="#22c55e">Emerald Green</option>
+          <option value="#3b82f6">Ocean Blue</option>
+          <option value="#a855f7">Royal Purple</option>
+          <option value="#ef4444">Crimson Red</option>
         </select>
 
-        <label>Java Path</label>
-        <div class="path-row">
+        <label>Custom Java Binary</label>
+        <div style="display:flex; gap:10px;">
           <input id="javaPathInput" readonly placeholder="Default: java">
           <button class="dark-btn" onclick="selectJava()">Browse</button>
         </div>
 
         <label>Game Directory</label>
-        <div class="path-row">
+        <div style="display:flex; gap:10px;">
           <input id="gameDirInput" readonly placeholder="Default: .aura-launcher">
           <button class="dark-btn" onclick="selectGameDir()">Browse</button>
         </div>
 
-        <label class="check-row">
-          <input id="closeAfterLaunch" type="checkbox" onchange="saveSettings()">
-          Close launcher after game starts
-        </label>
+        <div style="margin-top:20px;">
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <input id="closeAfterLaunch" type="checkbox" onchange="saveSettings()" style="width:18px; height:18px; min-height:18px;">
+            Close launcher automatically when Minecraft starts
+          </label>
+        </div>
 
-        <button class="dark-btn full-btn" onclick="checkForUpdates()">Check For Updates</button>
+        <button class="dark-btn full-btn" onclick="checkForUpdates()">Check For Launcher Updates</button>
       </div>
     </section>
 
+    <!-- PAGE: SKINS -->
     <section id="page-skins" class="page">
       <header class="topbar">
         <div>
-          <h2>Skins</h2>
-          <p>View Ely.by skin and open skin settings.</p>
+          <h2>Skin Customization</h2>
+          <p>Preview your online profile skin.</p>
         </div>
       </header>
 
-      <div class="card skin-card">
+      <div class="card" style="max-width:400px; text-align:center;">
         <img id="skinPreview" class="skin-preview" src="" onerror="this.style.display='none'">
         <h3 id="skinName">Not logged in</h3>
-        <p id="skinHelp">Login with Ely.by to show your skin.</p>
-        <button class="play-btn" onclick="openElySkins()">Open Ely.by Skins</button>
+        <p id="skinHelp" class="muted" style="margin-bottom:16px;">Login with Microsoft or Ely.by to view your custom skin.</p>
+        <button class="play-btn" onclick="openElySkins()">Manage Ely.by Skins</button>
       </div>
     </section>
   </main>
 </div>
 
+<!-- Launch Progress Modal -->
 <div id="logModal" class="log-modal hidden">
   <div class="log-box">
     <button class="modal-close" onclick="closeLogModal()">×</button>
     <div class="loader"></div>
-    <h2>Launching Minecraft</h2>
-    <p id="logStatus">Preparing...</p>
+    <h2>Starting Minecraft</h2>
+    <p id="logStatus">Initializing...</p>
     <textarea id="launchLog" readonly></textarea>
   </div>
 </div>
 
+<!-- Crash Reporter Modal -->
 <div id="crashModal" class="log-modal hidden">
   <div class="log-box">
-    <h2>Minecraft crashed</h2>
-    <p id="crashText">Exit code: unknown</p>
+    <h2 style="color:var(--danger);">Minecraft Crashed</h2>
+    <p id="crashText">Exit Code: Unknown</p>
     <textarea id="crashLog" readonly></textarea>
-    <button class="danger-btn" onclick="closeCrashModal()">Close</button>
+    <button class="danger-btn full-btn" onclick="closeCrashModal()">Dismiss</button>
+  </div>
+</div>
+
+<!-- Auto-Update Modal -->
+<div id="updateModal" class="log-modal hidden">
+  <div class="log-box">
+    <div class="loader"></div>
+    <h2 style="color: var(--accent);">Launcher Update</h2>
+    <p id="updateStatusText">Downloading new version...</p>
+    
+    <div class="progress" style="margin-top: 20px;">
+      <div id="updateProgressBar" style="width: 0%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), #38bdf8); box-shadow: 0 0 12px var(--accent-glow); transition: width 0.3s var(--ease);"></div>
+    </div>
+    
+    <p id="updateProgressText" style="margin-top: 10px; font-weight: bold;" class="muted">0%</p>
   </div>
 </div>
 

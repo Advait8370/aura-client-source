@@ -1,9 +1,7 @@
-const crypto = require("crypto");
-
 const loginStatus = document.getElementById("loginStatus");
 
 function setStatus(message) {
-  loginStatus.innerText = message;
+  if (loginStatus) loginStatus.innerText = message;
 }
 
 function getAccounts() {
@@ -28,25 +26,6 @@ function saveAccount(account) {
   localStorage.setItem("auraAccount", JSON.stringify(account));
 }
 
-function offlineUuid(username) {
-  const hash = crypto
-    .createHash("md5")
-    .update("OfflinePlayer:" + username)
-    .digest();
-
-  hash[6] = (hash[6] & 0x0f) | 0x30;
-  hash[8] = (hash[8] & 0x3f) | 0x80;
-
-  const hex = hash.toString("hex");
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    hex.slice(12, 16),
-    hex.slice(16, 20),
-    hex.slice(20)
-  ].join("-");
-}
-
 function createAvatarUrl(account) {
   return `https://mc-heads.net/avatar/${encodeURIComponent(account.name)}/128`;
 }
@@ -55,6 +34,25 @@ function validUsername(username) {
   return /^[A-Za-z0-9_]{3,16}$/.test(username);
 }
 
+// --- MICROSOFT AUTH ---
+async function loginMicrosoft() {
+  setStatus("Waiting for browser login...");
+  try {
+    const account = await window.electron.ipcRenderer.invoke("login-microsoft");
+    if (account) {
+      saveAccount(account);
+      setStatus("Logged in as " + account.name);
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 500);
+    }
+  } catch (err) {
+    setStatus("Microsoft login failed.");
+    alert(err.message);
+  }
+}
+
+// --- OFFLINE AUTH ---
 async function loginOffline() {
   const username = document.getElementById("offlineUsername").value.trim();
 
@@ -63,11 +61,13 @@ async function loginOffline() {
     return;
   }
 
+  const offlineId = await window.electron.ipcRenderer.invoke("generate-offline-uuid", username);
+
   const account = {
     id: "offline:" + username.toLowerCase(),
     type: "offline",
     name: username,
-    uuid: offlineUuid(username),
+    uuid: offlineId,
     accessToken: "0",
     clientToken: "AuraLauncher",
     avatarUrl: createAvatarUrl({ name: username }),
@@ -83,6 +83,7 @@ async function loginOffline() {
   }, 500);
 }
 
+// --- ELY.BY AUTH ---
 async function loginEly() {
   const username = document.getElementById("elyUsername").value.trim();
   const password = document.getElementById("elyPassword").value.trim();

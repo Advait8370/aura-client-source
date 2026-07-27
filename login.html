@@ -1,24 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Aura Login</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+  <div class="titlebar-drag-region">
+    <span class="titlebar-title">Aura Login</span>
+  </div>
+  <div class="titlebar-controls">
+    <button onclick="window.electron.ipcRenderer.send('window-minimize')">—</button>
+    <button onclick="window.electron.ipcRenderer.send('window-maximize')">▢</button>
+    <button class="close" onclick="window.electron.ipcRenderer.send('window-close')">✕</button>
+  </div>
+</div>
 
 <div class="login-page">
   <div class="login-card">
     <div class="logo-box login-logo">A</div>
 
     <h1>Aura Account</h1>
-    <p class="muted">Choose an Offline or Ely.by account.</p>
+    <p class="muted">Choose an account type below to continue.</p>
 
+    <!-- MICROSOFT LOGIN -->
+    <button class="play-btn" style="margin-bottom: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35);" onclick="loginMicrosoft()">
+      Login with Microsoft
+    </button>
+
+    <div class="divider">or</div>
+
+    <!-- OFFLINE LOGIN -->
     <label>Offline Username</label>
     <input id="offlineUsername" placeholder="Player name">
     <button class="play-btn" onclick="loginOffline()">Login Offline</button>
 
     <div class="divider">or</div>
 
+    <!-- ELY.BY LOGIN -->
     <label>Ely.by Username / Email</label>
     <input id="elyUsername" placeholder="Username or email">
 
@@ -26,7 +48,8 @@
     <input id="elyPassword" type="password" placeholder="Password">
 
     <button class="play-btn" onclick="loginEly()">Login with Ely.by</button>
-    <button class="dark-btn" onclick="goBack()">Back</button>
+    
+    <button class="dark-btn" onclick="goBack()" style="margin-top: 16px;">Back to Home</button>
 
     <p id="loginStatus" class="login-status">Ready</p>
   </div>
