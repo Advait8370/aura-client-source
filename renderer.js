@@ -68,6 +68,7 @@ const defaultAvatar = document.getElementById("defaultAvatar");
 const skinPreview = document.getElementById("skinPreview");
 const skinName = document.getElementById("skinName");
 const skinHelp = document.getElementById("skinHelp");
+const dynamicBg = document.getElementById("dynamicBg"); // Background Overlay Layer
 
 // Update Modal Elements
 const updateModal = document.getElementById("updateModal");
@@ -254,9 +255,18 @@ function deleteCurrentAccount() {
 }
 
 // --- SETTINGS ---
+function updateRamReadout() {
+  const ramSlider = document.getElementById("ram");
+  const ramText = document.getElementById("ramValueText");
+  if (ramSlider && ramText) {
+    ramText.innerText = ramSlider.value + " GB";
+  }
+}
+
 function saveSettings() {
   settings = {
     ram: document.getElementById("ram").value,
+    updateChannel: document.getElementById("updateChannel") ? document.getElementById("updateChannel").value : "release",
     javaPath,
     gameDir,
     closeAfterLaunch: closeAfterLaunchInput.checked
@@ -268,7 +278,8 @@ function saveSettings() {
 }
 
 function loadSettings() {
-  const ramSelect = document.getElementById("ram");
+  const ramSlider = document.getElementById("ram");
+  const updateChannelSelect = document.getElementById("updateChannel");
   const themeSelect = document.getElementById("theme");
   const accentSelect = document.getElementById("accentColor");
   const savedTheme = localStorage.getItem("auraTheme") || "dark";
@@ -277,7 +288,11 @@ function loadSettings() {
   document.body.dataset.theme = savedTheme;
   document.documentElement.style.setProperty("--accent", savedAccent);
 
-  if (ramSelect) ramSelect.value = settings.ram || "2";
+  if (ramSlider) {
+    ramSlider.value = settings.ram || "2";
+    updateRamReadout(); // Set the initial text on boot
+  }
+  if (updateChannelSelect) updateChannelSelect.value = settings.updateChannel || "release";
   if (themeSelect) themeSelect.value = savedTheme;
   if (accentSelect) accentSelect.value = savedAccent;
   if (javaPathInput) javaPathInput.value = javaPath === "java" ? "" : javaPath;
@@ -372,6 +387,27 @@ async function selectGameDir() {
 
 async function checkSelectedClient() {
   if (!clientSelect || !clientSelect.value) return;
+
+  // --- DYNAMIC BACKGROUND LOGIC ---
+  const clientId = clientSelect.value.toLowerCase();
+  
+  // High-quality placeholder images (you can replace these URLs with local assets later)
+  let bgUrl = "https://images.unsplash.com/photo-1607513746994-51f730a44832?q=80&w=2000"; // Default Vanilla
+  
+  if (clientId.includes("fabric")) {
+      bgUrl = "https://images.unsplash.com/photo-1587595431973-160d0d94add1?q=80&w=2000"; // Darker mountain theme
+  } else if (clientId.includes("forge")) {
+      bgUrl = "https://images.unsplash.com/photo-1627844642677-8b32e36bf268?q=80&w=2000"; // Forge/Lava aesthetic
+  } else if (clientId.includes("optifine")) {
+      bgUrl = "https://images.unsplash.com/photo-1629852230620-ce90d40510be?q=80&w=2000"; // High-fidelity shader look
+  }
+  
+  if (dynamicBg) {
+      // The CSS transition handles the smooth fade automatically
+      dynamicBg.style.backgroundImage = `url('${bgUrl}')`;
+  }
+  // --------------------------------
+
   try {
     const installed = await window.electron.ipcRenderer.invoke("check-client", {
       client: clientSelect.value,
@@ -562,8 +598,9 @@ function changeAccent() {
 }
 
 async function checkForUpdates() {
-  if(statusText) statusText.innerText = "Checking for updates...";
-  await window.electron.ipcRenderer.invoke("check-for-updates");
+  const channel = settings.updateChannel || "release";
+  if(statusText) statusText.innerText = `Checking for ${channel} updates...`;
+  await window.electron.ipcRenderer.invoke("check-for-updates", channel);
 }
 
 // --- IPC LISTENERS ---

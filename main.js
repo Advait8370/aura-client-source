@@ -3,6 +3,7 @@ const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const msmc = require("msmc");
 const crypto = require("crypto");
+const DiscordRPC = require("discord-rpc"); // Discord RPC imported
 
 const {
   loadClients,
@@ -13,6 +14,37 @@ const {
   launchMinecraft
 } = require("./launcher/launch");
 
+// --- DISCORD RPC SETUP ---
+const clientId = "1531696999076855818"; // Paste your Application ID here
+DiscordRPC.register(clientId);
+const rpc = new DiscordRPC.Client({ transport: "ipc" });
+const startTimestamp = new Date();
+
+async function setActivity(details, state) {
+  if (!rpc) return;
+  try {
+    await rpc.setActivity({
+      details: details,
+      state: state,
+      startTimestamp,
+      largeImageKey: "aura_logo", // Matches the asset uploaded in Discord Developer Portal
+      largeImageText: "Aura Launcher Beta",
+      instance: false,
+    });
+  } catch (err) {
+    console.warn("Discord RPC not active:", err.message);
+  }
+}
+
+rpc.on("ready", () => {
+  console.log("Discord RPC connected!");
+  setActivity("Browsing Launcher", "Idle");
+});
+
+// We catch errors so the launcher doesn't crash if the user has Discord closed
+rpc.login({ clientId }).catch(console.warn);
+
+// --- APP SETUP ---
 let mainWindow = null;
 
 function createWindow() {
@@ -157,12 +189,19 @@ ipcMain.on("launch-game", async (event, data) => {
     }
 
     event.reply("launch-status", "Launching Minecraft...");
+    
+    // RPC Update: Loading Client
+    setActivity(`Loading ${data.client}...`, "Starting Game");
 
     await launchMinecraft(
       data,
       msg => event.reply("launch-log", msg),
       code => {
         event.reply("minecraft-closed", code);
+        
+        // RPC Update: Reset to idle when Minecraft closes
+        setActivity("Browsing Launcher", "Idle");
+        
         if (code !== 0) {
           event.reply("launch-status", "Minecraft crashed. Exit code: " + code);
         } else {
@@ -172,6 +211,9 @@ ipcMain.on("launch-game", async (event, data) => {
     );
 
     event.reply("launch-status", "Minecraft started.");
+    
+    // RPC Update: Playing Game
+    setActivity(`Playing ${data.client}`, "In Game");
 
     if (data.closeAfterLaunch && mainWindow) {
       setTimeout(() => mainWindow.close(), 1500);
@@ -179,10 +221,15 @@ ipcMain.on("launch-game", async (event, data) => {
   } catch (err) {
     event.reply("launch-status", "Error: " + err.message);
     event.reply("launch-log", err.stack || err.message);
+    
+    // RPC Update: Reset on error
+    setActivity("Browsing Launcher", "Idle");
   }
 });
 
-ipcMain.handle("check-for-updates", async () => {
+// Allow prereleases on GitHub if user selects Beta channel
+ipcMain.handle("check-for-updates", async (event, channel) => {
+  autoUpdater.allowPrerelease = (channel === "beta");
   return await autoUpdater.checkForUpdates();
 });
 
