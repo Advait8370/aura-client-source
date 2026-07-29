@@ -22,16 +22,7 @@
       }
     ],
     "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "login.html",
-      "renderer.js",
-      "login.js",
-      "style.css",
-      "launcher/**/*",
-      "node_modules/**/*",
-      "package.json"
+      "**/*"
     ],
     "win": {
       "target": "nsis",

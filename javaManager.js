@@ -14,8 +14,17 @@ const getOS = () => {
 const getArch = () => {
     if (process.arch === 'x64') return 'x64';
     if (process.arch === 'arm64') return 'aarch64';
-    return 'x64'; // Default fallback
+    return 'x64';
 };
+
+// Helper to determine active root directory
+function resolveGameDir(gameDir) {
+    if (gameDir && typeof gameDir === 'string' && gameDir.trim() !== '') {
+        return gameDir;
+    }
+    const home = process.env.APPDATA || (process.platform === 'darwin' ? path.join(process.env.HOME, 'Library/Preferences') : process.env.HOME);
+    return path.join(home, '.aura-launcher');
+}
 
 // Downloads a file using native Node https
 function downloadFile(url, dest, onProgress) {
@@ -47,21 +56,20 @@ function downloadFile(url, dest, onProgress) {
     });
 }
 
-async function ensureJava(version, gameDir, onProgress) {
+async function ensureJava(version, rawGameDir, onProgress) {
+    const gameDir = resolveGameDir(rawGameDir);
     const runtimesDir = path.join(gameDir, 'runtimes');
     const javaTargetDir = path.join(runtimesDir, `jre-${version}`);
     
     if (!fs.existsSync(runtimesDir)) fs.mkdirSync(runtimesDir, { recursive: true });
 
-    // Determine the path to the executable based on OS
     let exeName = process.platform === 'win32' ? 'bin/java.exe' : 'bin/java';
     
-    // If the folder already exists, find the binary and return it instantly
+    // Check if Java runtime already exists
     if (fs.existsSync(javaTargetDir)) {
         const folders = fs.readdirSync(javaTargetDir).filter(f => fs.statSync(path.join(javaTargetDir, f)).isDirectory());
         if (folders.length > 0) {
             let binPath = path.join(javaTargetDir, folders[0], exeName);
-            // macOS specific binary path adjustment
             if (process.platform === 'darwin' && fs.existsSync(path.join(javaTargetDir, folders[0], 'Contents'))) {
                 binPath = path.join(javaTargetDir, folders[0], 'Contents/Home/bin/java');
             }
@@ -69,7 +77,6 @@ async function ensureJava(version, gameDir, onProgress) {
         }
     }
 
-    // If we reach here, Java is not installed. Let's fetch it from Adoptium.
     fs.mkdirSync(javaTargetDir, { recursive: true });
     
     const apiUrl = `https://api.adoptium.net/v3/assets/latest/${version}/hotspot?os=${getOS()}&architecture=${getArch()}&image_type=jre`;
@@ -87,21 +94,16 @@ async function ensureJava(version, gameDir, onProgress) {
                     const fileName = json[0].binary.package.name;
                     const archivePath = path.join(runtimesDir, fileName);
 
-                    // 1. Download
                     await downloadFile(downloadUrl, archivePath, onProgress);
 
-                    // 2. Extract
                     if (fileName.endsWith('.zip')) {
                         await extract(archivePath, { dir: javaTargetDir });
                     } else if (fileName.endsWith('.tar.gz')) {
-                        // Native tar command (works on macOS/Linux and Windows 10+)
                         execSync(`tar -xzf "${archivePath}" -C "${javaTargetDir}"`);
                     }
 
-                    // 3. Cleanup archive
-                    fs.unlinkSync(archivePath);
+                    if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
 
-                    // 4. Return the new binary path
                     const folders = fs.readdirSync(javaTargetDir);
                     let binPath = path.join(javaTargetDir, folders[0], exeName);
                     
