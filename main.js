@@ -3,7 +3,8 @@ const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const msmc = require("msmc");
 const crypto = require("crypto");
-const DiscordRPC = require("discord-rpc"); // Discord RPC imported
+const DiscordRPC = require("discord-rpc");
+const { ensureJava } = require("./javaManager"); // NEW: Automated Java Manager
 
 const {
   loadClients,
@@ -15,7 +16,7 @@ const {
 } = require("./launcher/launch");
 
 // --- DISCORD RPC SETUP ---
-const clientId = "1531696999076855818"; // Paste your Application ID here
+const clientId = "1531696999076855818";
 DiscordRPC.register(clientId);
 const rpc = new DiscordRPC.Client({ transport: "ipc" });
 const startTimestamp = new Date();
@@ -27,7 +28,7 @@ async function setActivity(details, state) {
       details: details,
       state: state,
       startTimestamp,
-      largeImageKey: "aura_logo", // Matches the asset uploaded in Discord Developer Portal
+      largeImageKey: "aura_logo",
       largeImageText: "Aura Launcher Beta",
       instance: false,
     });
@@ -41,18 +42,37 @@ rpc.on("ready", () => {
   setActivity("Browsing Launcher", "Idle");
 });
 
-// We catch errors so the launcher doesn't crash if the user has Discord closed
+// We catch errors so the launcher doesn't crash if Discord is closed
 rpc.login({ clientId }).catch(console.warn);
 
 // --- APP SETUP ---
 let mainWindow = null;
+let splashWindow = null;
 
 function createWindow() {
+  // 1. Create Splash Window
+  splashWindow = new BrowserWindow({
+    width: 320,
+    height: 420,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  
+  splashWindow.loadFile("splash.html");
+
+  // 2. Create Main Application Window (Hidden initially)
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 780,
     minWidth: 1050,
     minHeight: 720,
+    show: false,
     resizable: true,
     frame: false,
     titleBarStyle: 'hidden',
@@ -66,6 +86,28 @@ function createWindow() {
 
   mainWindow.loadFile("index.html");
   mainWindow.removeMenu();
+
+  // 3. Swap windows when main window is ready
+  mainWindow.once('ready-to-show', () => {
+    setTimeout(() => {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+    }, 1500); 
+  });
+}
+
+// --- JAVA VERSION RESOLVER ---
+function getRequiredJavaVersion(clientName) {
+  const match = clientName.match(/1\.(\d+)(\.\d+)?/);
+  if (match) {
+    const minor = parseFloat(match[1] + (match[2] || ""));
+    if (minor >= 20.5) return 21; // 1.20.5+ requires Java 21
+    if (minor >= 17) return 17;   // 1.17 to 1.20.4 requires Java 17
+  }
+  return 8; // 1.16.5 and below default to Java 8
 }
 
 // --- WINDOW CONTROLS ---
@@ -172,9 +214,25 @@ ipcMain.handle("delete-client", async (event, data) => {
   return await deleteClient(data.client, data.gameDir, msg => event.sender.send("launch-log", msg));
 });
 
+// --- GAME LAUNCH HANDLER ---
 ipcMain.on("launch-game", async (event, data) => {
   try {
     event.reply("launch-status", "Checking client...");
+
+    // AUTOMATED JAVA MANAGEMENT
+    if (!data.javaPath || data.javaPath === "java") {
+      const reqVersion = getRequiredJavaVersion(data.client);
+      event.reply("launch-status", `Verifying Java ${reqVersion} runtime...`);
+      event.reply("launch-log", `Client requires Java ${reqVersion}. Setting up runtime...`);
+
+      const managedJavaPath = await ensureJava(reqVersion, data.gameDir, (percent) => {
+        event.reply("download-progress", percent);
+        event.reply("launch-status", `Downloading Java ${reqVersion}...`);
+      });
+      
+      data.javaPath = managedJavaPath;
+      event.reply("launch-log", `Using managed Java runtime: ${managedJavaPath}`);
+    }
 
     if (!(await isClientInstalled(data.client, data.gameDir))) {
       event.reply("launch-status", "Installing client...");
@@ -189,8 +247,6 @@ ipcMain.on("launch-game", async (event, data) => {
     }
 
     event.reply("launch-status", "Launching Minecraft...");
-    
-    // RPC Update: Loading Client
     setActivity(`Loading ${data.client}...`, "Starting Game");
 
     await launchMinecraft(
@@ -198,8 +254,6 @@ ipcMain.on("launch-game", async (event, data) => {
       msg => event.reply("launch-log", msg),
       code => {
         event.reply("minecraft-closed", code);
-        
-        // RPC Update: Reset to idle when Minecraft closes
         setActivity("Browsing Launcher", "Idle");
         
         if (code !== 0) {
@@ -211,8 +265,6 @@ ipcMain.on("launch-game", async (event, data) => {
     );
 
     event.reply("launch-status", "Minecraft started.");
-    
-    // RPC Update: Playing Game
     setActivity(`Playing ${data.client}`, "In Game");
 
     if (data.closeAfterLaunch && mainWindow) {
@@ -221,13 +273,11 @@ ipcMain.on("launch-game", async (event, data) => {
   } catch (err) {
     event.reply("launch-status", "Error: " + err.message);
     event.reply("launch-log", err.stack || err.message);
-    
-    // RPC Update: Reset on error
     setActivity("Browsing Launcher", "Idle");
   }
 });
 
-// Allow prereleases on GitHub if user selects Beta channel
+// --- AUTO UPDATER ---
 ipcMain.handle("check-for-updates", async (event, channel) => {
   autoUpdater.allowPrerelease = (channel === "beta");
   return await autoUpdater.checkForUpdates();
