@@ -701,11 +701,18 @@ window.electron.ipcRenderer.on("update-status", (message) => {
         if (!updateModalDismissed && updateModal && !updateModal.classList.contains("hidden")) {
           if (updateStatusText) {
             updateStatusText.innerText =
-              "The update check is taking too long. Close this window and continue using Aura Launcher.";
+              "Update check timed out. Aura Launcher will continue without an update.";
           }
           if (loader) loader.style.display = "none";
           if (progressTrack) progressTrack.style.display = "none";
           if (updateProgressText) updateProgressText.style.display = "none";
+
+          // Automatically dismiss a stalled check so it cannot block the launcher.
+          updateStatusHideTimeout = setTimeout(() => {
+            if (!updateModalDismissed && updateModal) {
+              updateModal.classList.add("hidden");
+            }
+          }, 2500);
         }
       }, 20000);
     }
