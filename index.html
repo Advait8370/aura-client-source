@@ -329,16 +329,15 @@
 </div>
 
 <!-- Auto-Update Modal -->
-<div id="updateModal" class="log-modal hidden">
-  <div class="log-box">
-    <div class="loader"></div>
-    <h2 style="color: var(--accent);">Launcher Update</h2>
-    <p id="updateStatusText">Downloading new version...</p>
-    
-    <div class="progress" style="margin-top: 20px;">
+<div id="updateModal" class="log-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+  <div class="log-box update-log-box">
+    <button id="closeUpdateModal" class="update-close-btn" type="button" aria-label="Close update window" title="Close">×</button>
+    <div class="loader" id="updateLoader"></div>
+    <h2 id="updateModalTitle" style="color: var(--accent);">Launcher Update</h2>
+    <p id="updateStatusText">Checking for updates...</p>
+    <div class="progress" id="updateProgressTrack" style="margin-top: 20px;">
       <div id="updateProgressBar" style="width: 0%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), #38bdf8); box-shadow: 0 0 12px var(--accent-glow); transition: width 0.3s var(--ease);"></div>
     </div>
-    
     <p id="updateProgressText" style="margin-top: 10px; font-weight: bold;" class="muted">0%</p>
   </div>
 </div>
