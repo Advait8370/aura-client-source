@@ -959,3 +959,35 @@ button {
   }
 }
 
+
+
+/* --- Update modal close control --- */
+.update-log-box {
+  position: relative;
+  padding-top: 42px;
+}
+
+.update-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.update-close-btn:hover,
+.update-close-btn:focus-visible {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  outline: none;
+}
