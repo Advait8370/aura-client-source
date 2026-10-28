@@ -645,30 +645,100 @@ window.electron.ipcRenderer.on("minecraft-closed", (code) => {
   }
 });
 
+// Update modal lifecycle: close manually, hide terminal statuses, and
+// prevent a stalled update check from leaving the overlay stuck forever.
+let updateModalDismissed = false;
+let updateCheckTimeout = null;
+let updateStatusHideTimeout = null;
+
+function hideUpdateModal() {
+  if (updateModal) updateModal.classList.add("hidden");
+  updateModalDismissed = true;
+  if (updateCheckTimeout) {
+    clearTimeout(updateCheckTimeout);
+    updateCheckTimeout = null;
+  }
+  if (updateStatusHideTimeout) {
+    clearTimeout(updateStatusHideTimeout);
+    updateStatusHideTimeout = null;
+  }
+}
+
+const closeUpdateModalButton = document.getElementById("closeUpdateModal");
+if (closeUpdateModalButton) {
+  closeUpdateModalButton.addEventListener("click", hideUpdateModal);
+}
+
 window.electron.ipcRenderer.on("update-status", (message) => {
-  if(statusText) statusText.innerText = message;
-  
-  if (message.includes("Downloading") || message.includes("Checking")) {
-    if(updateModal) updateModal.classList.remove("hidden");
-    if(updateStatusText) updateStatusText.innerText = message;
+  const text = String(message || "");
+  const normalized = text.toLowerCase();
+
+  if (statusText) statusText.innerText = text;
+
+  const isChecking = normalized.includes("checking for updates");
+  const isDownloading = normalized.includes("downloading update") ||
+    normalized.includes("downloading new version");
+  const isTerminal = normalized.includes("up to date") ||
+    normalized.includes("unavailable") ||
+    normalized.includes("not available") ||
+    normalized.includes("update error") ||
+    normalized.includes("update check failed");
+
+  if (isChecking || isDownloading) {
+    updateModalDismissed = false;
+    if (updateModal) updateModal.classList.remove("hidden");
+    if (updateStatusText) updateStatusText.innerText = text;
+    if (updateCheckTimeout) clearTimeout(updateCheckTimeout);
+
+    const loader = document.getElementById("updateLoader");
+    const progressTrack = document.getElementById("updateProgressTrack");
+    if (loader) loader.style.display = "";
+    if (progressTrack) progressTrack.style.display = "";
+    if (updateProgressText) updateProgressText.style.display = "";
+
+    if (isChecking) {
+      updateCheckTimeout = setTimeout(() => {
+        if (!updateModalDismissed && updateModal && !updateModal.classList.contains("hidden")) {
+          if (updateStatusText) {
+            updateStatusText.innerText =
+              "The update check is taking too long. Close this window and continue using Aura Launcher.";
+          }
+          if (loader) loader.style.display = "none";
+          if (progressTrack) progressTrack.style.display = "none";
+          if (updateProgressText) updateProgressText.style.display = "none";
+        }
+      }, 20000);
+    }
+    return;
   }
-  
-  if (message.includes("Update ready")) {
-    if(updateStatusText) updateStatusText.innerText = "Update ready. Restarting launcher...";
+
+  if (normalized.includes("update ready")) {
+    if (updateStatusText) updateStatusText.innerText = text;
+    if (updateStatusHideTimeout) clearTimeout(updateStatusHideTimeout);
+    updateStatusHideTimeout = setTimeout(() => {
+      if (!updateModalDismissed && updateModal) updateModal.classList.add("hidden");
+    }, 3000);
+    return;
   }
-  
-  if (message.includes("Update error") || message.includes("not available")) {
-    setTimeout(() => {
-      if(updateModal) updateModal.classList.add("hidden");
+
+  if (isTerminal) {
+    if (updateStatusText) updateStatusText.innerText = text;
+    if (updateCheckTimeout) {
+      clearTimeout(updateCheckTimeout);
+      updateCheckTimeout = null;
+    }
+    if (updateStatusHideTimeout) clearTimeout(updateStatusHideTimeout);
+    updateStatusHideTimeout = setTimeout(() => {
+      if (!updateModalDismissed && updateModal) updateModal.classList.add("hidden");
     }, 3000);
   }
 });
 
 window.electron.ipcRenderer.on("update-progress", (percent) => {
-  const rounded = Math.round(percent);
-  if(updateProgressBar) updateProgressBar.style.width = rounded + "%";
-  if(updateProgressText) updateProgressText.innerText = rounded + "%";
-  if(consoleBox) consoleBox.value += `Update ${rounded}%\n`;
+  const rounded = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  if (updateProgressBar) updateProgressBar.style.width = rounded + "%";
+  if (updateProgressText) updateProgressText.innerText = rounded + "%";
+  if (consoleBox) consoleBox.value += `Update ${rounded}%\\n`;
 });
 
 // --- INIT ---
