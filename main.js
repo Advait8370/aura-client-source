@@ -4,7 +4,7 @@ const path = require("path");
 const msmc = require("msmc");
 const crypto = require("crypto");
 const DiscordRPC = require("discord-rpc");
-const { ensureJava } = require("./javaManager"); // NEW: Automated Java Manager
+const { ensureJava } = require("./javaManager");
 
 const {
   loadClients,
@@ -15,42 +15,48 @@ const {
   launchMinecraft
 } = require("./launcher/launch");
 
-// --- DISCORD RPC SETUP ---
+// ============================================================
+// DISCORD RPC
+// ============================================================
+
 const clientId = "1531696999076855818";
 DiscordRPC.register(clientId);
+
 const rpc = new DiscordRPC.Client({ transport: "ipc" });
 const startTimestamp = new Date();
 
 async function setActivity(details, state) {
-  if (!rpc) return;
   try {
     await rpc.setActivity({
-      details: details,
-      state: state,
+      details,
+      state,
       startTimestamp,
       largeImageKey: "aura_logo",
-      largeImageText: "Aura Launcher Beta",
-      instance: false,
+      largeImageText: "Aura Launcher",
+      instance: false
     });
-  } catch (err) {
-    console.warn("Discord RPC not active:", err.message);
+  } catch (error) {
+    console.warn("Discord RPC not active:", error.message);
   }
 }
 
 rpc.on("ready", () => {
-  console.log("Discord RPC connected!");
+  console.log("Discord RPC connected.");
   setActivity("Browsing Launcher", "Idle");
 });
 
-// We catch errors so the launcher doesn't crash if Discord is closed
-rpc.login({ clientId }).catch(console.warn);
+rpc.login({ clientId }).catch((error) => {
+  console.warn("Discord RPC unavailable:", error.message);
+});
 
-// --- APP SETUP ---
+// ============================================================
+// WINDOW MANAGEMENT
+// ============================================================
+
 let mainWindow = null;
 let splashWindow = null;
 
 function createWindow() {
-  // 1. Create Splash Window
   splashWindow = new BrowserWindow({
     width: 320,
     height: 420,
@@ -63,10 +69,9 @@ function createWindow() {
       contextIsolation: true
     }
   });
-  
-  splashWindow.loadFile("splash.html");
 
-  // 2. Create Main Application Window (Hidden initially)
+  splashWindow.loadFile(path.join(__dirname, "splash.html"));
+
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 780,
@@ -75,7 +80,7 @@ function createWindow() {
     show: false,
     resizable: true,
     frame: false,
-    titleBarStyle: 'hidden',
+    titleBarStyle: "hidden",
     backgroundColor: "#05070d",
     webPreferences: {
       nodeIntegration: false,
@@ -84,54 +89,132 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile("index.html");
+  mainWindow.loadFile(path.join(__dirname, "index.html"));
   mainWindow.removeMenu();
 
-  // 3. Swap windows when main window is ready
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once("ready-to-show", () => {
     setTimeout(() => {
       if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close();
       }
-      mainWindow.show();
-      mainWindow.focus();
-    }, 1500); 
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }, 1000);
+  });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
   });
 }
 
-// --- JAVA VERSION RESOLVER ---
-function getRequiredJavaVersion(clientName) {
-  const match = clientName.match(/1\.(\d+)(\.\d+)?/);
-  if (match) {
-    const minor = parseFloat(match[1] + (match[2] || ""));
-    if (minor >= 20.5) return 21; // 1.20.5+ requires Java 21
-    if (minor >= 17) return 17;   // 1.17 to 1.20.4 requires Java 17
+// ============================================================
+// JAVA VERSION RESOLVER
+// ============================================================
+
+function getRequiredJavaVersion(clientName = "") {
+  const name = String(clientName);
+
+  // Minecraft 1.20.5+ and modern releases require Java 21.
+  const modernMatch = name.match(/1\.(\d+)(?:\.(\d+))?/);
+
+  if (modernMatch) {
+    const minor = Number(modernMatch[1]);
+    const patch = Number(modernMatch[2] || 0);
+
+    if (minor > 20 || (minor === 20 && patch >= 5)) {
+      return 21;
+    }
+
+    if (minor >= 17) {
+      return 17;
+    }
+
+    return 8;
   }
-  return 8; // 1.16.5 and below default to Java 8
+
+  // New version naming, e.g. 26.x.
+  if (/\b26\./.test(name)) {
+    return 25;
+  }
+
+  return 8;
 }
 
-// --- WINDOW CONTROLS ---
-ipcMain.on("window-minimize", () => { if(mainWindow) mainWindow.minimize(); });
-ipcMain.on("window-maximize", () => { 
-  if(mainWindow) mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(); 
-});
-ipcMain.on("window-close", () => { if(mainWindow) mainWindow.close(); });
+// ============================================================
+// WINDOW CONTROLS
+// ============================================================
 
-// --- OFFLINE UUID GENERATOR ---
-ipcMain.handle("generate-offline-uuid", (event, username) => {
-  const hash = crypto.createHash("md5").update("OfflinePlayer:" + username).digest();
+ipcMain.on("window-minimize", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.on("window-maximize", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+});
+
+ipcMain.on("window-close", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  }
+});
+
+// ============================================================
+// OFFLINE UUID
+// ============================================================
+
+ipcMain.handle("generate-offline-uuid", (_event, username) => {
+  if (
+    typeof username !== "string" ||
+    !/^[A-Za-z0-9_]{3,16}$/.test(username)
+  ) {
+    throw new Error(
+      "Offline username must contain 3–16 letters, numbers or underscores."
+    );
+  }
+
+  const hash = crypto
+    .createHash("md5")
+    .update("OfflinePlayer:" + username)
+    .digest();
+
   hash[6] = (hash[6] & 0x0f) | 0x30;
   hash[8] = (hash[8] & 0x3f) | 0x80;
+
   const hex = hash.toString("hex");
-  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join("-");
+
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20)
+  ].join("-");
 });
 
-// --- MICROSOFT AUTHENTICATION ---
+// ============================================================
+// MICROSOFT AUTHENTICATION
+// ============================================================
+
 ipcMain.handle("login-microsoft", async () => {
   try {
     const authManager = new msmc.Auth("select_account");
     const xboxManager = await authManager.launch("raw");
     const token = await xboxManager.getMinecraft();
+
+    if (!token || !token.profile) {
+      throw new Error("No Minecraft profile was returned.");
+    }
 
     return {
       id: "ms:" + token.profile.id,
@@ -140,174 +223,407 @@ ipcMain.handle("login-microsoft", async () => {
       uuid: token.profile.id,
       accessToken: token.mclc().access_token,
       clientToken: "AuraLauncher",
-      avatarUrl: `https://mc-heads.net/avatar/${token.profile.name}/128`,
+      avatarUrl: `https://mc-heads.net/avatar/${encodeURIComponent(
+        token.profile.name
+      )}/128`,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-  } catch (err) {
-    throw new Error("Microsoft Authentication Failed: " + err.message);
+  } catch (error) {
+    console.error("Microsoft authentication failed:", error);
+
+    throw new Error(
+      "Microsoft authentication failed. Check your connection and account, then try again."
+    );
   }
 });
+
+// ============================================================
+// JAVA AND GAME DIRECTORY PICKERS
+// ============================================================
 
 ipcMain.handle("select-java", async () => {
   const result = await dialog.showOpenDialog({
     title: "Select Java executable",
     properties: ["openFile"],
     filters: [
-      { name: "Java", extensions: ["exe"] },
-      { name: "All Files", extensions: ["*"] }
+      { name: "Java executable", extensions: ["exe"] },
+      { name: "All files", extensions: ["*"] }
     ]
   });
+
   return result.canceled ? null : result.filePaths[0];
 });
 
 ipcMain.handle("select-game-dir", async () => {
   const result = await dialog.showOpenDialog({
-    title: "Select Game Directory",
-    properties: ["openDirectory"]
+    title: "Select Minecraft game directory",
+    properties: ["openDirectory", "createDirectory"]
   });
+
   return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle("open-external", async (event, url) => {
-  await shell.openExternal(url);
+// ============================================================
+// EXTERNAL LINKS
+// ============================================================
+
+ipcMain.handle("open-external", async (_event, url) => {
+  if (typeof url !== "string") {
+    throw new Error("A valid URL is required.");
+  }
+
+  let parsed;
+
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("The supplied URL is invalid.");
+  }
+
+  if (!["https:", "http:"].includes(parsed.protocol)) {
+    throw new Error("Only HTTP and HTTPS links can be opened.");
+  }
+
+  await shell.openExternal(parsed.toString());
   return true;
 });
+
+// ============================================================
+// CLIENT MANAGEMENT
+// ============================================================
 
 ipcMain.handle("load-clients", async () => {
   return await loadClients();
 });
 
-ipcMain.handle("check-client", async (event, data) => {
-  const clientId = typeof data === "string" ? data : data.client;
-  const gameDir = typeof data === "string" ? null : data.gameDir;
-  if (!clientId || clientId.trim() === "") return false;
+ipcMain.handle("check-client", async (_event, data) => {
+  const clientId = typeof data === "string" ? data : data?.client;
+  const gameDir = typeof data === "string" ? null : data?.gameDir;
+
+  if (typeof clientId !== "string" || !clientId.trim()) {
+    return false;
+  }
+
   return await isClientInstalled(clientId, gameDir);
 });
 
 ipcMain.handle("install-client", async (event, data) => {
-  const clientId = typeof data === "string" ? data : data.client;
-  const gameDir = typeof data === "string" ? null : data.gameDir;
-  if (!clientId || clientId.trim() === "") throw new Error("No client selected");
+  const clientId = typeof data === "string" ? data : data?.client;
+  const gameDir = typeof data === "string" ? null : data?.gameDir;
+
+  if (typeof clientId !== "string" || !clientId.trim()) {
+    throw new Error("No client selected.");
+  }
+
   return await installClient(
     clientId,
-    msg => event.sender.send("launch-log", msg),
+    (message) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("launch-log", String(message));
+      }
+    },
     (percent, downloaded, total, speed, eta) => {
-      event.sender.send("download-progress", { percent, downloaded, total, speed, eta });
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("download-progress", {
+          percent,
+          downloaded,
+          total,
+          speed,
+          eta
+        });
+      }
     },
     gameDir
   );
 });
 
 ipcMain.handle("repair-client", async (event, data) => {
+  if (!data || typeof data.client !== "string") {
+    throw new Error("No client selected for repair.");
+  }
+
   return await repairClient(
     data.client,
-    msg => event.sender.send("launch-log", msg),
+    (message) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("launch-log", String(message));
+      }
+    },
     (percent, downloaded, total, speed, eta) => {
-      event.sender.send("download-progress", { percent, downloaded, total, speed, eta });
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("download-progress", {
+          percent,
+          downloaded,
+          total,
+          speed,
+          eta
+        });
+      }
     },
     data.gameDir
   );
 });
 
 ipcMain.handle("delete-client", async (event, data) => {
-  return await deleteClient(data.client, data.gameDir, msg => event.sender.send("launch-log", msg));
+  if (!data || typeof data.client !== "string") {
+    throw new Error("No client selected for deletion.");
+  }
+
+  return await deleteClient(
+    data.client,
+    data.gameDir,
+    (message) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("launch-log", String(message));
+      }
+    }
+  );
 });
 
-// --- GAME LAUNCH HANDLER ---
+// ============================================================
+// MINECRAFT LAUNCHING
+// ============================================================
+
 ipcMain.on("launch-game", async (event, data) => {
+  const send = (channel, payload) => {
+    if (!event.sender.isDestroyed()) {
+      event.sender.send(channel, payload);
+    }
+  };
+
   try {
-    event.reply("launch-status", "Checking client...");
-
-    // AUTOMATED JAVA MANAGEMENT
-    if (!data.javaPath || data.javaPath === "java") {
-      const reqVersion = getRequiredJavaVersion(data.client);
-      event.reply("launch-status", `Verifying Java ${reqVersion} runtime...`);
-      event.reply("launch-log", `Client requires Java ${reqVersion}. Setting up runtime...`);
-
-      const managedJavaPath = await ensureJava(reqVersion, data.gameDir, (percent) => {
-        event.reply("download-progress", percent);
-        event.reply("launch-status", `Downloading Java ${reqVersion}...`);
-      });
-      
-      data.javaPath = managedJavaPath;
-      event.reply("launch-log", `Using managed Java runtime: ${managedJavaPath}`);
+    if (!data || typeof data.client !== "string") {
+      throw new Error("No Minecraft client selected.");
     }
 
-    if (!(await isClientInstalled(data.client, data.gameDir))) {
-      event.reply("launch-status", "Installing client...");
+    send("launch-status", "Checking client...");
+
+    if (!data.javaPath || data.javaPath === "java") {
+      const requiredVersion = getRequiredJavaVersion(data.client);
+
+      send(
+        "launch-status",
+        `Verifying Java ${requiredVersion} runtime...`
+      );
+
+      send(
+        "launch-log",
+        `Client requires Java ${requiredVersion}. Checking runtime...`
+      );
+
+      const managedJavaPath = await ensureJava(
+        requiredVersion,
+        data.gameDir,
+        (percent) => {
+          send("download-progress", {
+            percent: Number(percent) || 0
+          });
+
+          send(
+            "launch-status",
+            `Preparing Java ${requiredVersion}...`
+          );
+        }
+      );
+
+      data.javaPath = managedJavaPath;
+      send("launch-log", `Using Java runtime: ${managedJavaPath}`);
+    }
+
+    const installed = await isClientInstalled(
+      data.client,
+      data.gameDir
+    );
+
+    if (!installed) {
+      send("launch-status", "Installing client...");
+
       await installClient(
         data.client,
-        msg => event.reply("launch-log", msg),
+        (message) => send("launch-log", String(message)),
         (percent, downloaded, total, speed, eta) => {
-          event.reply("download-progress", { percent, downloaded, total, speed, eta });
+          send("download-progress", {
+            percent,
+            downloaded,
+            total,
+            speed,
+            eta
+          });
         },
         data.gameDir
       );
     }
 
-    event.reply("launch-status", "Launching Minecraft...");
+    send("launch-status", "Launching Minecraft...");
     setActivity(`Loading ${data.client}...`, "Starting Game");
 
     await launchMinecraft(
       data,
-      msg => event.reply("launch-log", msg),
-      code => {
-        event.reply("minecraft-closed", code);
+      (message) => send("launch-log", String(message)),
+      (exitCode) => {
+        send("minecraft-closed", exitCode);
+
         setActivity("Browsing Launcher", "Idle");
-        
-        if (code !== 0) {
-          event.reply("launch-status", "Minecraft crashed. Exit code: " + code);
+
+        if (exitCode !== 0) {
+          send(
+            "launch-status",
+            `Minecraft exited with code ${exitCode}.`
+          );
         } else {
-          event.reply("launch-status", "Minecraft closed.");
+          send("launch-status", "Minecraft closed.");
         }
       }
     );
 
-    event.reply("launch-status", "Minecraft started.");
+    send("launch-status", "Minecraft started.");
     setActivity(`Playing ${data.client}`, "In Game");
 
     if (data.closeAfterLaunch && mainWindow) {
-      setTimeout(() => mainWindow.close(), 1500);
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.close();
+        }
+      }, 1500);
     }
-  } catch (err) {
-    event.reply("launch-status", "Error: " + err.message);
-    event.reply("launch-log", err.stack || err.message);
+  } catch (error) {
+    console.error("Minecraft launch failed:", error);
+
+    send("launch-status", "Launch failed. Check the console for details.");
+    send(
+      "launch-log",
+      error && error.stack ? error.stack : String(error)
+    );
+
     setActivity("Browsing Launcher", "Idle");
   }
 });
 
-// --- AUTO UPDATER ---
-ipcMain.handle("check-for-updates", async (event, channel) => {
-  autoUpdater.allowPrerelease = (channel === "beta");
-  return await autoUpdater.checkForUpdates();
-});
+// ============================================================
+// AUTO UPDATER
+// ============================================================
 
-app.whenReady().then(() => {
-  createWindow();
-  setupAutoUpdater();
-  autoUpdater.checkForUpdatesAndNotify();
-});
+ipcMain.handle("check-for-updates", async (_event, channel) => {
+  if (!app.isPackaged) {
+    sendToRenderer(
+      "update-status",
+      "Automatic updates are available in packaged releases only."
+    );
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+    return {
+      skipped: true,
+      reason: "development-build"
+    };
+  }
+
+  autoUpdater.allowPrerelease = channel === "beta";
+
+  try {
+    return await autoUpdater.checkForUpdates();
+  } catch (error) {
+    console.error("Manual update check failed:", error);
+
+    sendToRenderer(
+      "update-status",
+      "Updates are currently unavailable. You can continue using Aura Launcher."
+    );
+
+    return {
+      skipped: true,
+      reason: "update-check-failed"
+    };
+  }
 });
 
 function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
-  autoUpdater.on("checking-for-update", () => sendToRenderer("update-status", "Checking for updates..."));
-  autoUpdater.on("update-available", info => sendToRenderer("update-status", "Downloading update " + info.version));
-  autoUpdater.on("update-not-available", () => sendToRenderer("update-status", "Update not available."));
-  autoUpdater.on("download-progress", progress => sendToRenderer("update-progress", progress.percent));
-  autoUpdater.on("update-downloaded", () => {
-    sendToRenderer("update-status", "Update ready. Restarting...");
-    setTimeout(() => autoUpdater.quitAndInstall(), 3000);
+
+  autoUpdater.on("checking-for-update", () => {
+    sendToRenderer("update-status", "Checking for updates...");
   });
-  autoUpdater.on("error", err => sendToRenderer("update-status", "Update error: " + err.message));
+
+  autoUpdater.on("update-available", (info) => {
+    sendToRenderer(
+      "update-status",
+      `Downloading update ${info.version}...`
+    );
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    sendToRenderer("update-status", "Aura Launcher is up to date.");
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    sendToRenderer("update-progress", progress.percent);
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    sendToRenderer(
+      "update-status",
+      "Update ready. Restarting launcher..."
+    );
+
+    setTimeout(() => {
+      if (app.isPackaged) {
+        autoUpdater.quitAndInstall();
+      }
+    }, 3000);
+  });
+
+  autoUpdater.on("error", (error) => {
+    // Detailed diagnostics stay in the developer console.
+    // Do not expose HTTP response headers in the sidebar.
+    console.error("Aura Launcher updater error:", error);
+
+    sendToRenderer(
+      "update-status",
+      "Updates unavailable. You can continue using Aura Launcher."
+    );
+  });
 }
 
 function sendToRenderer(channel, data) {
-  if (mainWindow && mainWindow.webContents) {
+  if (
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    mainWindow.webContents &&
+    !mainWindow.webContents.isDestroyed()
+  ) {
     mainWindow.webContents.send(channel, data);
   }
 }
+
+// ============================================================
+// APP STARTUP
+// ============================================================
+
+app.whenReady().then(() => {
+  setupAutoUpdater();
+  createWindow();
+
+  // Never request latest.yml while running `npm start`.
+  // Packaged releases still require a valid release feed.
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((error) => {
+      console.warn(
+        "Automatic update check failed:",
+        error.message
+      );
+    });
+  }
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  try {
+    rpc.destroy();
+  } catch {
+    // Discord may not have been connected.
+  }
+});

@@ -685,3 +685,277 @@ button {
   font-weight: 700;
   user-select: none;
 }
+
+/* =========================================================
+   AURA LAUNCHER — LAYOUT AND ERROR-OVERFLOW FIXES
+   Additive fixes for the existing index.html structure.
+   ========================================================= */
+
+/* Keep app layers in a predictable stacking context. */
+.titlebar {
+  position: relative;
+  z-index: 1000;
+  flex: 0 0 32px;
+}
+
+.dynamic-bg,
+.bg-overlay {
+  pointer-events: none;
+}
+
+.dynamic-bg {
+  z-index: 0;
+}
+
+.bg-overlay {
+  z-index: 1;
+}
+
+.app {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  height: calc(100vh - 32px);
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+/* Prevent long status/error messages from covering the sidebar. */
+.sidebar {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  height: calc(100vh - 32px);
+  gap: 8px;
+}
+
+.sidebar .logo {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.sidebar .side-btn {
+  flex: 0 0 44px;
+  min-width: 0;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.sidebar .account {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-top: auto;
+}
+
+.sidebar .account > div:last-child {
+  min-width: 0;
+}
+
+.sidebar .status {
+  flex: 0 0 auto;
+  display: -webkit-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  max-height: 54px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+/* Main content must be allowed to shrink inside the grid. */
+.main {
+  min-width: 0;
+  min-height: 0;
+  height: calc(100vh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.page {
+  min-width: 0;
+}
+
+.panel-grid {
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.25fr);
+  align-items: stretch;
+}
+
+.panel-grid > *,
+.card,
+.console-card,
+.launch-card {
+  min-width: 0;
+}
+
+.topbar > * {
+  min-width: 0;
+}
+
+.banner h3 {
+  font-size: clamp(28px, 3vw, 38px);
+  overflow-wrap: anywhere;
+}
+
+/* Long HTTP headers/logs remain inside the console instead of the sidebar. */
+#console,
+#launchLog,
+#crashLog {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+}
+
+/* The update modal and other dialogs remain above app content. */
+.log-modal {
+  z-index: 2000;
+}
+
+.log-box {
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Compact window / lower display heights. */
+@media (max-height: 760px) {
+  .sidebar {
+    padding: 12px 16px;
+    gap: 5px;
+  }
+
+  .sidebar .logo {
+    padding: 4px 4px 10px;
+  }
+
+  .sidebar .side-btn {
+    flex-basis: 38px;
+    min-height: 38px;
+  }
+
+  .sidebar .status {
+    max-height: 38px;
+    -webkit-line-clamp: 1;
+  }
+
+  .main {
+    padding: 24px;
+  }
+
+  .banner {
+    min-height: 150px;
+  }
+
+  .panel-grid {
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 1050px) {
+  .app {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 16px;
+  }
+
+  .main {
+    padding: 24px;
+  }
+
+  .panel-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
+  .app {
+    width: 100%;
+    height: auto;
+    min-height: calc(100vh - 32px);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar .account {
+    margin-top: 8px;
+  }
+
+  .sidebar .status {
+    max-height: 54px;
+  }
+
+  .main {
+    height: auto;
+    overflow: visible;
+    padding: 20px;
+  }
+
+  .topbar {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .banner {
+    min-height: 160px;
+    padding: 22px;
+  }
+
+  .banner h3 {
+    font-size: 28px;
+  }
+
+  .panel-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #console {
+    min-height: 180px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
