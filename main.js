@@ -32,7 +32,7 @@ async function setActivity(details, state) {
       state,
       startTimestamp,
       largeImageKey: "aura_logo",
-      largeImageText: "Aura Launcher",
+      largeImageText: "Aura Launcher Legacy",
       instance: false
     });
   } catch (error) {
@@ -526,7 +526,7 @@ ipcMain.handle("check-for-updates", async (_event, channel) => {
 
     sendToRenderer(
       "update-status",
-      "Updates are currently unavailable. You can continue using Aura Launcher."
+      "Updates are currently unavailable. You can continue using Aura Launcher Legacy."
     );
 
     return {
@@ -551,7 +551,7 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("update-not-available", () => {
-    sendToRenderer("update-status", "Aura Launcher is up to date.");
+    sendToRenderer("update-status", "Aura Launcher Legacy is up to date.");
   });
 
   autoUpdater.on("download-progress", (progress) => {
@@ -574,11 +574,11 @@ function setupAutoUpdater() {
   autoUpdater.on("error", (error) => {
     // Detailed diagnostics stay in the developer console.
     // Do not expose HTTP response headers in the sidebar.
-    console.error("Aura Launcher updater error:", error);
+    console.error("Aura Launcher Legacy updater error:", error);
 
     sendToRenderer(
       "update-status",
-      "Updates unavailable. You can continue using Aura Launcher."
+      "Updates unavailable. You can continue using Aura Launcher Legacy."
     );
   });
 }
