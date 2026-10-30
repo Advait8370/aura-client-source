@@ -1,7 +1,7 @@
 {
   "name": "aura-launcher",
   "version": "2.0.0-beta.1",
-  "description": "Aura Client Launcher",
+  "description": "Aura Launcher Legacy - the classic NSIS desktop launcher",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,7 +9,7 @@
   },
   "build": {
     "appId": "com.aura.launcher",
-    "productName": "Aura Launcher",
+    "productName": "Aura Launcher Legacy",
     "artifactName": "${productName} Setup ${version}.${ext}",
     "directories": {
       "output": "dist"
@@ -18,7 +18,7 @@
       {
         "provider": "github",
         "owner": "Advait8370",
-        "repo": "aura-client"
+        "repo": "aura-client.official"
       }
     ],
     "files": [
