@@ -1,6 +1,6 @@
 {
   "name": "aura-launcher",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "description": "Aura Launcher Legacy - the classic NSIS desktop launcher",
   "main": "main.js",
   "scripts": {
